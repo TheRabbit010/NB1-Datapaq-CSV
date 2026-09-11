@@ -167,12 +167,17 @@ st.markdown("""
 # 3. แสดงชื่อโปรแกรมหลัก
 st.title("🏭 Datapaq NB1")
 
-# 4. ฟังก์ชันแปลงวินาทีเป็นรูปแบบ HH:MM:SS
+# 4. ฟังก์ชันแปลงวินาทีเป็นรูปแบบ HH:MM:SS หรือ MM:SS
 def format_seconds_to_time(total_seconds):
     hours = int(total_seconds // 3600)
     minutes = int((total_seconds % 3600) // 60)
     seconds = int(total_seconds % 60)
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+def format_dwell_time(seconds):
+    mins = int(seconds // 60)
+    secs = int(seconds % 60)
+    return f"{mins}:{secs:02d} min ({seconds}s)"
 
 # ฟังก์ชันแปลง Hex Color เป็น RGBA
 def hex_to_rgba(hex_str, opacity=0.25):
@@ -510,7 +515,7 @@ if uploaded_files:
                 gridcolor="rgba(255,255,255,0.08)",
                 zeroline=False,
                 linecolor="#555555",
-                domain=[0.22, 1.0],  # ย่อความสูงกราฟเพื่อเปิดพื้นที่ 22% ด้านล่างให้แกน X สองแถบ
+                domain=[0.22, 1.0],
                 range=[0, 650]
             ),
             # แกน X ที่ 1 (Time (hh:mm:ss)) - แถบส่วนบน
@@ -525,14 +530,14 @@ if uploaded_files:
                 linewidth=1,
                 linecolor="#888888",
                 anchor="free",
-                position=0.12  # ลอยอยู่ที่ความสูง y=0.12
+                position=0.12
             ),
-            # 🎯 แกน X ที่ 2 (Distance (m)) - แถบแยกด้านล่างสุด
+            # แกน X ที่ 2 (Distance (m)) - แถบแยกด้านล่างสุด
             xaxis2=dict(
                 title=dict(text="Distance (m)", font=dict(color="#F0B90B", size=11)),
                 overlaying="x",
                 anchor="free",
-                position=0.00,  # อยู่ล่างสุดที่ y=0.00 แยกกรอบชัดเจน
+                position=0.00,
                 tickmode="array",
                 tickvals=df.loc[tick_indices, "Distance (m)"].tolist(),
                 ticktext=[f"{d:.2f}" for d in df.loc[tick_indices, "Distance (m)"]],
@@ -543,10 +548,80 @@ if uploaded_files:
                 linecolor="#F0B90B"
             ),
             height=660,
-            margin=dict(l=60, r=240, t=50, b=120)  # เพิ่ม margin ด้านล่างลึกขึ้นเป็น 120px
+            margin=dict(l=60, r=240, t=50, b=120)
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
+        # ---------------------------------------------------------
+        # 📊 ตารางสรุปค่าสูงสุด และ Dwell Time (>175°C) ใต้กราฟ
+        # ---------------------------------------------------------
+        st.markdown("### 📊 ตารางสรุปผลการวิเคราะห์แต่ละกลุ่มงาน (Process Analysis Summary)")
+
+        # คำนวณช่วง ElapsedSeconds ของแต่ละกลุ่มงาน
+        # Dryer: 00:00:00 - 00:04:58 (0 - 298 วินาที)
+        # Debinder: 00:04:59 - 00:15:34 (299 - 934 วินาที)
+        # Brazing: 00:15:35 - 00:27:37 (935 - 1657 วินาที)
+        
+        dryer_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 298)]
+        debinder_subset = df[(df["ElapsedSeconds"] >= 299) & (df["ElapsedSeconds"] <= 934)]
+        brazing_subset = df[(df["ElapsedSeconds"] >= 935) & (df["ElapsedSeconds"] <= 1657)]
+
+        summary_rows = []
+        for col_name in probe_cols[:8]:
+            # Dryer Max & Dwell
+            d_max = dryer_subset[col_name].max() if not dryer_subset.empty else 0.0
+            d_dwell_sec = (dryer_subset[col_name] > 175).sum() if not dryer_subset.empty else 0
+            
+            # Debinder Max & Dwell > 175°C
+            db_max = debinder_subset[col_name].max() if not debinder_subset.empty else 0.0
+            db_dwell_sec = (debinder_subset[col_name] > 175).sum() if not debinder_subset.empty else 0
+            
+            # Brazing Max & Dwell > 175°C
+            br_max = brazing_subset[col_name].max() if not brazing_subset.empty else 0.0
+            br_dwell_sec = (brazing_subset[col_name] > 175).sum() if not brazing_subset.empty else 0
+
+            # ตรวจสอบว่า Probe อยู่ตำแหน่ง Center หรือ Corner
+            is_center = "Probe #2" in col_name or "Probe #5" in col_name or "center" in col_name.lower() or "middle" in col_name.lower()
+            
+            # สถานะการผ่านเกณฑ์ (Pass / Fail)
+            d_temp_pass = "✅ Pass" if 175 <= d_max <= 260 else "❌ Fail"
+            d_dwell_pass = "✅ Pass" if d_dwell_sec >= 60 else "❌ Fail" # std > 1 min
+            
+            db_temp_pass = "✅ Pass" if 200 <= db_max <= 375 else "❌ Fail"
+            db_dwell_pass = "✅ Pass" if db_dwell_sec >= 120 else "❌ Fail" # std > 2 min
+            
+            if is_center:
+                br_temp_pass = "✅ Pass" if 583 <= br_max <= 607 else "❌ Fail"
+            else:
+                br_temp_pass = "✅ Pass" if 596 <= br_max <= 610 else "❌ Fail"
+                
+            br_dwell_pass = "✅ Pass" if (150 <= br_dwell_sec <= 360) else "❌ Fail" # std 2:30 - 6:00 min (150s - 360s)
+
+            summary_rows.append({
+                "Probe Name": col_name,
+                "Dryer Max (°C)": f"{d_max:.1f} °C ({d_temp_pass})",
+                "Dryer Dwell >175°C": f"{format_dwell_time(d_dwell_sec)} ({d_dwell_pass})",
+                "Debinder Max (°C)": f"{db_max:.1f} °C ({db_temp_pass})",
+                "Debinder Dwell >175°C": f"{format_dwell_time(db_dwell_sec)} ({db_dwell_pass})",
+                "Brazing Max (°C)": f"{br_max:.1f} °C ({br_temp_pass})",
+                "Brazing Dwell >175°C": f"{format_dwell_time(br_dwell_sec)} ({br_dwell_pass})"
+            })
+
+        summary_df = pd.DataFrame(summary_rows)
+
+        st.dataframe(summary_df, use_container_width=True)
+
+        # คำอธิบายเกณฑ์มาตรฐาน (Std Standard Legend)
+        st.markdown("""
+            <div style="background-color: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 12px 18px; font-size: 13px; color: #CCCCCC; margin-top: 10px;">
+                <b style="color: #F0B90B;">📌 เกณฑ์มาตรฐานอ้างอิง (Process Standards):</b><br>
+                • <b>Dryer:</b> Max Temp <b>175 - 260 °C</b> | Dwell Time >175°C <b>> 1:00 min (>60s)</b><br>
+                • <b>Debinder:</b> Max Temp <b>200 - 375 °C</b> | Dwell Time >175°C <b>> 2:00 min (>120s)</b><br>
+                • <b>Brazing Max Temp:</b> Corner Probes <b>596 - 610 °C</b> | Center Probes (#2, #5) <b>583 - 607 °C</b><br>
+                • <b>Brazing Dwell Time >175°C:</b> <b>2:30 - 6:00 min (150s - 360s)</b>
+            </div>
+        """, unsafe_allow_html=True)
 
         # ส่วนตรวจสอบและเลือกดาวน์โหลด Excel (.xlsx)
         with st.expander("📋 ตรวจสอบและเลือกดาวน์โหลดตารางข้อมูล Excel (.xlsx)"):
