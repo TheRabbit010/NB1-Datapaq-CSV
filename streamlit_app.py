@@ -14,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. บังคับ Dark Mode CSS + จัดการตารางให้อยู่ตรงกลาง (Center Align)
+# 2. บังคับ Dark Mode CSS + จัดการตารางให้อยู่ตรงกลางอย่างสมบูรณ์ (Center Align All Cells)
 st.markdown("""
     <style>
         /* ซ่อนแถบขาว Header ด้านบน */
@@ -121,8 +121,8 @@ st.markdown("""
             color: #ffffff !important;
         }
 
-        /* ปรับแต่งตาราง Dataframe & จัดกลางตัวเลข/ข้อความ */
-        [data-testid="stDataFrame"] {
+        /* ปรับแต่งตาราง Dataframe & บังคับจัดข้อความ/ตัวเลขอยู่กึ่งกลางทุกช่อง */
+        [data-testid="stDataFrame"], [data-testid="stTable"] {
             background-color: #161b22 !important;
             border: 1px solid #30363d !important;
             border-radius: 8px !important;
@@ -137,9 +137,20 @@ st.markdown("""
             justify-content: center !important;
             text-align: center !important;
         }
+        div[data-testid="stDataFrame"] div[role="columnheader"] > div {
+            justify-content: center !important;
+            text-align: center !important;
+            width: 100% !important;
+        }
         div[data-testid="stDataFrame"] div[role="gridcell"] {
             justify-content: center !important;
             text-align: center !important;
+            display: flex !important;
+            align-items: center !important;
+        }
+        div[data-testid="stDataFrame"] div[role="gridcell"] > div {
+            text-align: center !important;
+            width: 100% !important;
         }
 
         /* ปรับแต่งปุ่มดาวน์โหลด Excel */
@@ -561,7 +572,7 @@ if uploaded_files:
         st.plotly_chart(fig, use_container_width=True)
 
         # ---------------------------------------------------------
-        # 📊 ตารางสรุปค่า (เฉพาะตัวเลขสำหรับ Copy ไปวางใน Google Sheets)
+        # 📊 ตารางสรุปค่า (ปรับโครงสร้างหัวตารางตามข้อสั่งการ)
         # ---------------------------------------------------------
         st.markdown("### 📊 ตารางสรุปผลการวิเคราะห์ (Data Table for Google Sheets Copy)")
 
@@ -587,7 +598,7 @@ if uploaded_files:
             db_max = f"{debinder_subset[col_name].max():.1f}" if not debinder_subset.empty else "0.0"
             d_max = f"{dryer_subset[col_name].max():.1f}" if not dryer_subset.empty else "0.0"
             
-            # 2. Dwell Times -> แสดงในรูปแบบ HH:MM:SS (ไม่มีทศนิยม)
+            # 2. Dwell Times -> แสดงในรูปแบบ HH:MM:SS
             br_dwell_600 = (brazing_subset[col_name] > 600).sum() if not brazing_subset.empty else 0
             br_dwell_583 = (brazing_subset[col_name] > 583).sum() if not brazing_subset.empty else 0
             br_dwell_577 = (brazing_subset[col_name] > 577).sum() if not brazing_subset.empty else 0
@@ -608,32 +619,43 @@ if uploaded_files:
                 format_seconds_to_time(d_dwell_175)
             ])
 
-        # ตัดคำว่า / probe ออกจากหัวตาราง
+        # ปรับโครงสร้างชื่อกลุ่มงาน และย้าย Dwell Time มารวมกับ Above
         multi_cols = pd.MultiIndex.from_tuples([
             ("", "Location"),
             ("", "Probe"),
             ("Max Temp (°C)", "Brazing"),
             ("Max Temp (°C)", "Debinder"),
             ("Max Temp (°C)", "Dryer"),
-            ("Dwell Time [Brazing Zone]", "above 600°C"),
-            ("Dwell Time [Brazing Zone]", "above 583°C"),
-            ("Dwell Time [Brazing Zone]", "above 577°C"),
-            ("Dwell Time [Debinder Zone]", "above 200°C"),
-            ("Dwell Time [Dryer Zone]", "above 175°C")
+            ("Brazing Zone", "Dwell Time Above 600°C"),
+            ("Brazing Zone", "Dwell Time Above 583°C"),
+            ("Brazing Zone", "Dwell Time Above 577°C"),
+            ("Debinder Zone", "Dwell Time Above 200°C"),
+            ("Dryer Zone", "Dwell Time Above 175°C")
         ])
 
         display_summary_df = pd.DataFrame(summary_rows, columns=multi_cols)
 
-        st.dataframe(display_summary_df, use_container_width=True, hide_index=True)
+        # ใช้ column_config เพื่อช่วยบังคับการแสดงผลให้อยู่ตรงกลางทุกคอลัมน์
+        column_config = {
+            col: st.column_config.Column(alignment="center") 
+            for col in display_summary_df.columns
+        }
+
+        st.dataframe(
+            display_summary_df, 
+            use_container_width=True, 
+            hide_index=True,
+            column_config=column_config
+        )
 
         # คำอธิบายเกณฑ์มาตรฐาน (Process Standards Legend)
         st.markdown("""
             <div style="background-color: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 12px 18px; font-size: 13px; color: #CCCCCC; margin-top: 10px;">
                 <b style="color: #F0B90B;">📌 เกณฑ์มาตรฐานอ้างอิง (Process Standards):</b><br>
                 • <b>Maximum Temperatures (°C):</b> Brazing (Corner Probes: <b>596 - 610 °C</b> | Center Probes #2, #5: <b>583 - 607 °C</b>) | Debinder: <b>200 - 375 °C</b> | Dryer: <b>175 - 260 °C</b><br>
-                • <b>Brazing Dwell Time:</b> above 600°C: <b>< 4:00 min (<240s)</b> | above 583°C & 577°C: <b>2:30 - 6:00 min (150s - 360s)</b><br>
-                • <b>Debinder Dwell Time:</b> above 200°C: <b>> 2:00 min (>120s)</b><br>
-                • <b>Dryer Dwell Time:</b> above 175°C: <b>> 1:00 min (>60s)</b>
+                • <b>Brazing Dwell Time:</b> Dwell Time Above 600°C: <b>< 4:00 min (<240s)</b> | Dwell Time Above 583°C & 577°C: <b>2:30 - 6:00 min (150s - 360s)</b><br>
+                • <b>Debinder Dwell Time:</b> Dwell Time Above 200°C: <b>> 2:00 min (>120s)</b><br>
+                • <b>Dryer Dwell Time:</b> Dwell Time Above 175°C: <b>> 1:00 min (>60s)</b>
             </div>
         """, unsafe_allow_html=True)
 
