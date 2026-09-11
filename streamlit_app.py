@@ -14,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. บังคับ Dark Mode CSS
+# 2. บังคับ Dark Mode CSS + จัดการตารางให้อยู่ตรงกลาง (Center Align)
 st.markdown("""
     <style>
         /* ซ่อนแถบขาว Header ด้านบน */
@@ -121,7 +121,7 @@ st.markdown("""
             color: #ffffff !important;
         }
 
-        /* ปรับแต่งตาราง Dataframe */
+        /* ปรับแต่งตาราง Dataframe & จัดกลางตัวเลข/ข้อความ */
         [data-testid="stDataFrame"] {
             background-color: #161b22 !important;
             border: 1px solid #30363d !important;
@@ -134,6 +134,12 @@ st.markdown("""
         div[data-testid="stDataFrame"] div[role="columnheader"] {
             background-color: #21262d !important;
             color: #ffffff !important;
+            justify-content: center !important;
+            text-align: center !important;
+        }
+        div[data-testid="stDataFrame"] div[role="gridcell"] {
+            justify-content: center !important;
+            text-align: center !important;
         }
 
         /* ปรับแต่งปุ่มดาวน์โหลด Excel */
@@ -168,12 +174,12 @@ st.markdown("""
 # 3. แสดงชื่อโปรแกรมหลัก
 st.title("🏭 Datapaq NB1")
 
-# 4. ฟังก์ชันแปลงวินาทีเป็นรูปแบบ HH:MM:SS
+# 4. ฟังก์ชันแปลงวินาทีเป็นรูปแบบ HH:MM:SS (ไม่มีทศนิยม)
 def format_seconds_to_time(total_seconds):
     hours = int(total_seconds // 3600)
     minutes = int((total_seconds % 3600) // 60)
     seconds = int(total_seconds % 60)
-    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    return f"{hours}:{minutes:02d}:{seconds:02d}"
 
 # ฟังก์ชันแปลง Hex Color เป็น RGBA
 def hex_to_rgba(hex_str, opacity=0.25):
@@ -563,12 +569,6 @@ if uploaded_files:
         debinder_subset = df[(df["ElapsedSeconds"] >= 330) & (df["ElapsedSeconds"] <= 840)]   # Debinder: 00:05:30 - 00:14:00
         brazing_subset = df[(df["ElapsedSeconds"] >= 935) & (df["ElapsedSeconds"] <= 1759)]   # Brazing: 00:15:35 - 00:29:19
 
-        def format_excel_time(seconds):
-            hours = int(seconds // 3600)
-            mins = int((seconds % 3600) // 60)
-            secs = int(seconds % 60)
-            return f"{hours}:{mins:02d}:{secs:02d}"
-
         probe_order = [1, 2, 3, 8, 4, 5, 6, 7]
         ordered_cols = []
         for p_num in probe_order:
@@ -582,12 +582,12 @@ if uploaded_files:
             location = "Bottom" if p_num in [1, 2, 3, 8] else "Top"
             short_pb_name = f"PB#{p_num}"
             
-            # 1. Maximum Temperatures (°C)
-            d_max = round(dryer_subset[col_name].max(), 1) if not dryer_subset.empty else 0.0
-            db_max = round(debinder_subset[col_name].max(), 1) if not debinder_subset.empty else 0.0
-            br_max = round(brazing_subset[col_name].max(), 1) if not brazing_subset.empty else 0.0
+            # 1. Maximum Temperatures (°C) -> ฟอร์แมตทศนิยม 1 ตำแหน่งเสมอ
+            br_max = f"{brazing_subset[col_name].max():.1f}" if not brazing_subset.empty else "0.0"
+            db_max = f"{debinder_subset[col_name].max():.1f}" if not debinder_subset.empty else "0.0"
+            d_max = f"{dryer_subset[col_name].max():.1f}" if not dryer_subset.empty else "0.0"
             
-            # 2. Dwell Times
+            # 2. Dwell Times -> แสดงในรูปแบบ HH:MM:SS (ไม่มีทศนิยม)
             br_dwell_600 = (brazing_subset[col_name] > 600).sum() if not brazing_subset.empty else 0
             br_dwell_583 = (brazing_subset[col_name] > 583).sum() if not brazing_subset.empty else 0
             br_dwell_577 = (brazing_subset[col_name] > 577).sum() if not brazing_subset.empty else 0
@@ -601,11 +601,11 @@ if uploaded_files:
                 br_max,
                 db_max,
                 d_max,
-                format_excel_time(br_dwell_600),
-                format_excel_time(br_dwell_583),
-                format_excel_time(br_dwell_577),
-                format_excel_time(db_dwell_200),
-                format_excel_time(d_dwell_175)
+                format_seconds_to_time(br_dwell_600),
+                format_seconds_to_time(br_dwell_583),
+                format_seconds_to_time(br_dwell_577),
+                format_seconds_to_time(db_dwell_200),
+                format_seconds_to_time(d_dwell_175)
             ])
 
         multi_cols = pd.MultiIndex.from_tuples([
@@ -614,11 +614,11 @@ if uploaded_files:
             ("Max Temp (°C)", "Brazing"),
             ("Max Temp (°C)", "Debinder"),
             ("Max Temp (°C)", "Dryer"),
-            ("Dwell Time [Brazing Zone]", "at 600°C / probe"),
-            ("Dwell Time [Brazing Zone]", "at 583°C / probe"),
-            ("Dwell Time [Brazing Zone]", "at 577°C / probe"),
-            ("Dwell Time [Debinder Zone]", "at 200°C / probe"),
-            ("Dwell Time [Dryer Zone]", "at 175°C / probe")
+            ("Dwell Time [Brazing Zone]", "above 600°C / probe"),
+            ("Dwell Time [Brazing Zone]", "above 583°C / probe"),
+            ("Dwell Time [Brazing Zone]", "above 577°C / probe"),
+            ("Dwell Time [Debinder Zone]", "above 200°C / probe"),
+            ("Dwell Time [Dryer Zone]", "above 175°C / probe")
         ])
 
         display_summary_df = pd.DataFrame(summary_rows, columns=multi_cols)
@@ -630,9 +630,9 @@ if uploaded_files:
             <div style="background-color: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 12px 18px; font-size: 13px; color: #CCCCCC; margin-top: 10px;">
                 <b style="color: #F0B90B;">📌 เกณฑ์มาตรฐานอ้างอิง (Process Standards):</b><br>
                 • <b>Maximum Temperatures (°C):</b> Brazing (Corner Probes: <b>596 - 610 °C</b> | Center Probes #2, #5: <b>583 - 607 °C</b>) | Debinder: <b>200 - 375 °C</b> | Dryer: <b>175 - 260 °C</b><br>
-                • <b>Brazing Dwell Time:</b> at 600°C: <b>< 4:00 min (<240s)</b> | at 583°C & 577°C: <b>2:30 - 6:00 min (150s - 360s)</b><br>
-                • <b>Debinder Dwell Time:</b> at 200°C: <b>> 2:00 min (>120s)</b><br>
-                • <b>Dryer Dwell Time:</b> at 175°C: <b>> 1:00 min (>60s)</b>
+                • <b>Brazing Dwell Time:</b> above 600°C: <b>< 4:00 min (<240s)</b> | above 583°C & 577°C: <b>2:30 - 6:00 min (150s - 360s)</b><br>
+                • <b>Debinder Dwell Time:</b> above 200°C: <b>> 2:00 min (>120s)</b><br>
+                • <b>Dryer Dwell Time:</b> above 175°C: <b>> 1:00 min (>60s)</b>
             </div>
         """, unsafe_allow_html=True)
 
