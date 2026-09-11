@@ -261,10 +261,12 @@ def parse_single_file(uploaded_file):
     for idx, row_vals in enumerate(data_rows):
         current_total_sec = start_sec + (idx * interval_sec)
         time_str = format_seconds_to_time(current_total_sec)
+        distance_m = current_total_sec * 0.02  # 00:00:00 = 0.0m, +0.02m per sec
         
         row_dict = {
             "ElapsedSeconds": current_total_sec,
-            "Time (HH:MM:SS)": time_str
+            "Time (HH:MM:SS)": time_str,
+            "Distance (m)": round(distance_m, 2)
         }
         
         for i in range(1, 9):
@@ -329,14 +331,6 @@ if uploaded_files:
         st.sidebar.markdown("---")
         st.sidebar.header("🎛️ Dynamic Controls")
         
-        # ตัวเลือกแกน X
-        x_axis_mode = st.sidebar.radio(
-            "📍 เลือกแกน X (X-Axis Mode):",
-            ["Time (HH:MM:SS)", "Distance (m / mm) - Coming Soon"],
-            index=0
-        )
-
-        st.sidebar.markdown("---")
         st.sidebar.subheader("🎨 โหมดแสดงสีพื้นหลัง (Background Shading Mode)")
         
         color_shading_mode = st.sidebar.radio(
@@ -345,9 +339,9 @@ if uploaded_files:
             index=0
         )
 
-        # กำหนดช่วงเวลาเริ่มต้นสำหรับแต่ละโหมด
+        # กำหนดช่วงเวลาโซนคงที่
         if color_shading_mode == "แสดงสีตามโซน (By Zone)":
-            default_zones_df = pd.DataFrame([
+            zones_data = [
                 {"Start Time": "00:00:00", "End Time": "00:02:14", "Zone Name": "Dryer Z#1"},
                 {"Start Time": "00:02:15", "End Time": "00:04:28", "Zone Name": "Dryer Z#2"},
                 {"Start Time": "00:04:29", "End Time": "00:04:58", "Zone Name": "EXT Dryer"},
@@ -371,29 +365,17 @@ if uploaded_files:
                 {"Start Time": "00:32:29", "End Time": "00:33:21", "Zone Name": "AirCool#1"},
                 {"Start Time": "00:33:22", "End Time": "00:34:15", "Zone Name": "AirCool#2"},
                 {"Start Time": "00:34:16", "End Time": "00:35:35", "Zone Name": "Exit"}
-            ])
+            ]
             angle_setting = -90
-        else: # แสดงสีตามกลุ่มงาน (By Process Group)
-            default_zones_df = pd.DataFrame([
+        else:
+            zones_data = [
                 {"Start Time": "00:00:00", "End Time": "00:04:58", "Zone Name": "Dryer"},
                 {"Start Time": "00:04:59", "End Time": "00:15:34", "Zone Name": "Debinder"},
                 {"Start Time": "00:15:35", "End Time": "00:27:37", "Zone Name": "Brazing"},
                 {"Start Time": "00:27:38", "End Time": "00:34:15", "Zone Name": "Cool"},
                 {"Start Time": "00:34:16", "End Time": "00:35:35", "Zone Name": "Exit"}
-            ])
-            angle_setting = 0  # แนวนอนเมื่อแสดงเป็นชื่อกลุ่มงานหลัก
-
-        edited_zones = st.sidebar.data_editor(
-            default_zones_df,
-            num_rows="dynamic",
-            use_container_width=True,
-            column_config={
-                "Start Time": st.column_config.TextColumn("เริ่ม", default="00:00:00"),
-                "End Time": st.column_config.TextColumn("สิ้นสุด", default="00:05:00"),
-                "Zone Name": st.column_config.TextColumn("ชื่อโซน/กลุ่มงาน", default="Name")
-            },
-            key=f"editor_{color_shading_mode}"
-        )
+            ]
+            angle_setting = 0
 
         # 📋 แสดงผล Header Metadata
         col_h1, col_h2 = st.columns(2)
@@ -435,20 +417,12 @@ if uploaded_files:
             "#00D2D3", "#FF9F1A", "#2E86DE", "#EE5253", "#0ABDE3"
         ]
 
-        # กำหนด Column แกน X
-        x_data = df["Time (HH:MM:SS)"]
-        x_title = "Time (HH:MM:SS)"
-
-        if "Distance" in x_axis_mode and "Distance" in df.columns:
-            x_data = df["Distance"]
-            x_title = "Distance"
-
-        # 1. Plot ข้อมูล Probe ทั้ง 8 ก่อน
+        # 1. Plot ข้อมูล Probe ทั้ง 8 บนแกนเวลา
         probe_cols = [c for c in df.columns if c.startswith("Probe #")]
         for idx, col in enumerate(probe_cols[:8]):
             fig.add_trace(
                 go.Scatter(
-                    x=x_data,
+                    x=df["Time (HH:MM:SS)"],
                     y=df[col],
                     name=col,
                     mode="lines",
@@ -457,40 +431,48 @@ if uploaded_files:
             )
 
         # 2. วาดพื้นหลังโซนเวลา/กลุ่มงานสลับสีแบบโปร่งใส + วางชื่อโซน
-        if edited_zones is not None and not edited_zones.empty:
-            for idx, z_row in edited_zones.iterrows():
-                start_t = str(z_row.get("Start Time", "")).strip()
-                end_t = str(z_row.get("End Time", "")).strip()
-                z_name = str(z_row.get("Zone Name", "")).strip()
-                
-                if start_t and end_t and z_name:
-                    color_hex = zone_palette[idx % len(zone_palette)]
-                    fill_opacity = 0.22 if color_shading_mode == "แสดงสีตามกลุ่มงาน (By Process Group)" else 0.20
-                    fill_rgba = hex_to_rgba(color_hex, fill_opacity)
-                    line_rgba = hex_to_rgba(color_hex, 0.60)
-                    
-                    fig.add_vrect(
-                        x0=start_t,
-                        x1=end_t,
-                        fillcolor=fill_rgba,
-                        layer="below",
-                        line_width=1.5,
-                        line_dash="dot",
-                        line_color=line_rgba
-                    )
-                    
-                    font_sz = 11 if color_shading_mode == "แสดงสีตามกลุ่มงาน (By Process Group)" else 9
-                    
-                    fig.add_annotation(
-                        x=start_t,
-                        y=620,
-                        text=f"<b>{z_name}</b>",
-                        showarrow=False,
-                        xanchor="left",
-                        yanchor="bottom",
-                        font=dict(color="#FFFFFF", size=font_sz, family="Arial Bold"),
-                        textangle=angle_setting
-                    )
+        for idx, z_item in enumerate(zones_data):
+            start_t = z_item["Start Time"]
+            end_t = z_item["End Time"]
+            z_name = z_item["Zone Name"]
+            
+            color_hex = zone_palette[idx % len(zone_palette)]
+            fill_opacity = 0.22 if color_shading_mode == "แสดงสีตามกลุ่มงาน (By Process Group)" else 0.20
+            fill_rgba = hex_to_rgba(color_hex, fill_opacity)
+            line_rgba = hex_to_rgba(color_hex, 0.60)
+            
+            fig.add_vrect(
+                x0=start_t,
+                x1=end_t,
+                fillcolor=fill_rgba,
+                layer="below",
+                line_width=1.5,
+                line_dash="dot",
+                line_color=line_rgba
+            )
+            
+            font_sz = 11 if color_shading_mode == "แสดงสีตามกลุ่มงาน (By Process Group)" else 9
+            
+            fig.add_annotation(
+                x=start_t,
+                y=620,
+                text=f"<b>{z_name}</b>",
+                showarrow=False,
+                xanchor="left",
+                yanchor="bottom",
+                font=dict(color="#FFFFFF", size=font_sz, family="Arial Bold"),
+                textangle=angle_setting
+            )
+
+        # คำนวณช่วง Tick Values เว้นช่วงให้สวยงาม
+        step_tick = max(1, len(df) // 18)
+        tick_indices = list(range(0, len(df), step_tick))
+        if (len(df) - 1) not in tick_indices:
+            tick_indices.append(len(df) - 1)
+            
+        tick_vals = df.loc[tick_indices, "Time (HH:MM:SS)"].tolist()
+        tick_times = tick_vals
+        tick_distances = [f"{row['Distance (m)']:.2f}" for _, row in df.loc[tick_indices].iterrows()]
 
         fig.update_layout(
             template="plotly_dark",
@@ -509,13 +491,7 @@ if uploaded_files:
                 xanchor="left",
                 x=1.02
             ),
-            xaxis=dict(
-                title=dict(text=x_title, font=dict(color="#FFFFFF", size=12)),
-                tickfont=dict(color="#CCCCCC", size=10),
-                showgrid=True,
-                gridcolor="rgba(255,255,255,0.08)",
-                linecolor="#555555"
-            ),
+            # แกน Y หลัก
             yaxis=dict(
                 title=dict(text="Temperature (°C)", font=dict(color="#FFFFFF", size=12)),
                 tickfont=dict(color="#CCCCCC", size=10),
@@ -523,10 +499,41 @@ if uploaded_files:
                 gridcolor="rgba(255,255,255,0.08)",
                 zeroline=False,
                 linecolor="#555555",
+                domain=[0.18, 1.0],  # ปรับลดพื้นที่แนวตั้งเล็กน้อยเพื่อให้แกน X ล่างมีช่องว่างแยกขนาน
                 range=[0, 650]
             ),
-            height=600,
-            margin=dict(l=60, r=240, t=50, b=40)
+            # แกน X ที่ 1 (Time (HH:MM:SS))
+            xaxis=dict(
+                title=dict(text="Time (hh:mm:ss)", font=dict(color="#FFFFFF", size=11)),
+                tickmode="array",
+                tickvals=tick_vals,
+                ticktext=tick_times,
+                tickfont=dict(color="#CCCCCC", size=10),
+                showgrid=True,
+                gridcolor="rgba(255,255,255,0.08)",
+                showline=True,
+                linewidth=1,
+                linecolor="#888888",
+                anchor="free",
+                position=0.10  # วางแถบเวลาที่ระดับความสูง y=0.10
+            ),
+            # แกน X ที่ 2 (Distance (m)) - แยกขนานลงมาด้านล่าง
+            xaxis2=dict(
+                title=dict(text="Distance (m)", font=dict(color="#FFFFFF", size=11)),
+                overlaying="x",
+                anchor="free",
+                position=0.0,   # วางแถบระยะทางแยกเป็นกรอบด้านล่างสุดที่ y=0.0
+                tickmode="array",
+                tickvals=tick_vals,
+                ticktext=tick_distances,
+                tickfont=dict(color="#CCCCCC", size=10),
+                showgrid=False,
+                showline=True,
+                linewidth=1,
+                linecolor="#888888"
+            ),
+            height=630,
+            margin=dict(l=60, r=240, t=50, b=50)
         )
 
         st.plotly_chart(fig, use_container_width=True)
