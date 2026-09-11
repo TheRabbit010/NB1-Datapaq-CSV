@@ -554,7 +554,7 @@ if uploaded_files:
         st.plotly_chart(fig, use_container_width=True)
 
         # ---------------------------------------------------------
-        # 📊 ตารางสรุปค่าสูงสุด และ Dwell Time (>175°C) ใต้กราฟ
+        # 📊 ตารางสรุปค่าสูงสุด และ Dwell Time ใต้กราฟ
         # ---------------------------------------------------------
         st.markdown("### 📊 ตารางสรุปผลการวิเคราะห์แต่ละกลุ่มงาน (Process Analysis Summary)")
 
@@ -569,34 +569,45 @@ if uploaded_files:
 
         summary_rows = []
         for col_name in probe_cols[:8]:
-            # Dryer Max & Dwell
+            # 1. Dryer Max & Dwell > 175°C
             d_max = dryer_subset[col_name].max() if not dryer_subset.empty else 0.0
             d_dwell_sec = (dryer_subset[col_name] > 175).sum() if not dryer_subset.empty else 0
             
-            # Debinder Max & Dwell > 175°C
+            # 2. Debinder Max & Dwell > 175°C
             db_max = debinder_subset[col_name].max() if not debinder_subset.empty else 0.0
             db_dwell_sec = (debinder_subset[col_name] > 175).sum() if not debinder_subset.empty else 0
             
-            # Brazing Max & Dwell > 175°C
+            # 3. Brazing Max & 3 Dwell Time Groups (>577°C, >583°C, >600°C)
             br_max = brazing_subset[col_name].max() if not brazing_subset.empty else 0.0
-            br_dwell_sec = (brazing_subset[col_name] > 175).sum() if not brazing_subset.empty else 0
+            br_dwell_577 = (brazing_subset[col_name] > 577).sum() if not brazing_subset.empty else 0
+            br_dwell_583 = (brazing_subset[col_name] > 583).sum() if not brazing_subset.empty else 0
+            br_dwell_600 = (brazing_subset[col_name] > 600).sum() if not brazing_subset.empty else 0
 
-            # ตรวจสอบว่า Probe อยู่ตำแหน่ง Center หรือ Corner
+            # ตรวจสอบตำแหน่ง Probe (Center vs Corner)
             is_center = "Probe #2" in col_name or "Probe #5" in col_name or "center" in col_name.lower() or "middle" in col_name.lower()
             
-            # สถานะการผ่านเกณฑ์ (Pass / Fail)
+            # สถานะตรวจสอบเกณฑ์มาตรฐาน (Pass / Fail)
             d_temp_pass = "✅ Pass" if 175 <= d_max <= 260 else "❌ Fail"
             d_dwell_pass = "✅ Pass" if d_dwell_sec >= 60 else "❌ Fail" # std > 1 min
             
             db_temp_pass = "✅ Pass" if 200 <= db_max <= 375 else "❌ Fail"
             db_dwell_pass = "✅ Pass" if db_dwell_sec >= 120 else "❌ Fail" # std > 2 min
             
+            # Brazing Max Temp Pass/Fail
             if is_center:
                 br_temp_pass = "✅ Pass" if 583 <= br_max <= 607 else "❌ Fail"
             else:
                 br_temp_pass = "✅ Pass" if 596 <= br_max <= 610 else "❌ Fail"
                 
-            br_dwell_pass = "✅ Pass" if (150 <= br_dwell_sec <= 360) else "❌ Fail" # std 2:30 - 6:00 min (150s - 360s)
+            # Brazing Dwell Time Pass/Fail Checks:
+            # Group 1: 577°C (std 2:30 - 6:00 min = 150s - 360s)
+            br_577_pass = "✅ Pass" if (150 <= br_dwell_577 <= 360) else "❌ Fail"
+            
+            # Group 2: 583°C (std 2:30 - 6:00 min = 150s - 360s)
+            br_583_pass = "✅ Pass" if (150 <= br_dwell_583 <= 360) else "❌ Fail"
+            
+            # Group 3: 600°C (std < 4:00 min = < 240s)
+            br_600_pass = "✅ Pass" if (br_dwell_600 < 240) else "❌ Fail"
 
             summary_rows.append({
                 "Probe Name": col_name,
@@ -605,21 +616,25 @@ if uploaded_files:
                 "Debinder Max (°C)": f"{db_max:.1f} °C ({db_temp_pass})",
                 "Debinder Dwell >175°C": f"{format_dwell_time(db_dwell_sec)} ({db_dwell_pass})",
                 "Brazing Max (°C)": f"{br_max:.1f} °C ({br_temp_pass})",
-                "Brazing Dwell >175°C": f"{format_dwell_time(br_dwell_sec)} ({br_dwell_pass})"
+                "Brazing Dwell >577°C": f"{format_dwell_time(br_dwell_577)} ({br_577_pass})",
+                "Brazing Dwell >583°C": f"{format_dwell_time(br_dwell_583)} ({br_583_pass})",
+                "Brazing Dwell >600°C": f"{format_dwell_time(br_dwell_600)} ({br_600_pass})"
             })
 
         summary_df = pd.DataFrame(summary_rows)
 
         st.dataframe(summary_df, use_container_width=True)
 
-        # คำอธิบายเกณฑ์มาตรฐาน (Std Standard Legend)
+        # คำอธิบายเกณฑ์มาตรฐาน (Process Standards Legend)
         st.markdown("""
             <div style="background-color: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 12px 18px; font-size: 13px; color: #CCCCCC; margin-top: 10px;">
                 <b style="color: #F0B90B;">📌 เกณฑ์มาตรฐานอ้างอิง (Process Standards):</b><br>
                 • <b>Dryer:</b> Max Temp <b>175 - 260 °C</b> | Dwell Time >175°C <b>> 1:00 min (>60s)</b><br>
                 • <b>Debinder:</b> Max Temp <b>200 - 375 °C</b> | Dwell Time >175°C <b>> 2:00 min (>120s)</b><br>
                 • <b>Brazing Max Temp:</b> Corner Probes <b>596 - 610 °C</b> | Center Probes (#2, #5) <b>583 - 607 °C</b><br>
-                • <b>Brazing Dwell Time >175°C:</b> <b>2:30 - 6:00 min (150s - 360s)</b>
+                • <b>Brazing Dwell Time >577°C:</b> <b>2:30 - 6:00 min (150s - 360s)</b><br>
+                • <b>Brazing Dwell Time >583°C:</b> <b>2:30 - 6:00 min (150s - 360s)</b><br>
+                • <b>Brazing Dwell Time >600°C:</b> <b>< 4:00 min (<240s)</b>
             </div>
         """, unsafe_allow_html=True)
 
