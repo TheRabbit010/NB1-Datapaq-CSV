@@ -369,11 +369,11 @@ if uploaded_files:
             angle_setting = -90
         else:
             zones_data = [
-                {"Start Time": "00:00:00", "End Time": "00:04:58", "Zone Name": "Dryer"},
-                {"Start Time": "00:04:59", "End Time": "00:15:34", "Zone Name": "Debinder"},
-                {"Start Time": "00:15:35", "End Time": "00:27:37", "Zone Name": "Brazing"},
-                {"Start Time": "00:27:38", "End Time": "00:34:15", "Zone Name": "Cool"},
-                {"Start Time": "00:34:16", "End Time": "00:35:35", "Zone Name": "Exit"}
+                {"Start Time": "00:00:00", "End Time": "00:04:58", "Zone Name": "Dryer", "Color": "#FF8C00"},      # ส้มอุ่น (อบแห้ง ~300°C)
+                {"Start Time": "00:04:59", "End Time": "00:15:34", "Zone Name": "Debinder", "Color": "#E63946"},   # แดงส้ม (กำจัดกาวยาง ~350°C)
+                {"Start Time": "00:15:35", "End Time": "00:27:37", "Zone Name": "Brazing", "Color": "#FF0033"},    # แดงเพลิงเข้ม (ความร้อนสูงสุุด ~600°C)
+                {"Start Time": "00:27:38", "End Time": "00:34:15", "Zone Name": "Cool", "Color": "#00B4D8"},       # ฟ้าเย็น (โซนหล่อเย็น)
+                {"Start Time": "00:34:16", "End Time": "00:35:35", "Zone Name": "Exit", "Color": "#6C757D"}        # เทาเย็น (ทางออก)
             ]
             angle_setting = 0
 
@@ -436,7 +436,11 @@ if uploaded_files:
             end_t = z_item["End Time"]
             z_name = z_item["Zone Name"]
             
-            color_hex = zone_palette[idx % len(zone_palette)]
+            if "Color" in z_item:
+                color_hex = z_item["Color"]
+            else:
+                color_hex = zone_palette[idx % len(zone_palette)]
+
             fill_opacity = 0.22 if color_shading_mode == "แสดงสีตามกลุ่มงาน (By Process Group)" else 0.20
             fill_rgba = hex_to_rgba(color_hex, fill_opacity)
             line_rgba = hex_to_rgba(color_hex, 0.60)
@@ -499,10 +503,10 @@ if uploaded_files:
                 gridcolor="rgba(255,255,255,0.08)",
                 zeroline=False,
                 linecolor="#555555",
-                domain=[0.18, 1.0],  # ปรับลดพื้นที่แนวตั้งเล็กน้อยเพื่อให้แกน X ล่างมีช่องว่างแยกขนาน
+                domain=[0.18, 1.0],
                 range=[0, 650]
             ),
-            # แกน X ที่ 1 (Time (HH:MM:SS))
+            # แกน X ที่ 1 (Time (hh:mm:ss))
             xaxis=dict(
                 title=dict(text="Time (hh:mm:ss)", font=dict(color="#FFFFFF", size=11)),
                 tickmode="array",
@@ -515,14 +519,14 @@ if uploaded_files:
                 linewidth=1,
                 linecolor="#888888",
                 anchor="free",
-                position=0.10  # วางแถบเวลาที่ระดับความสูง y=0.10
+                position=0.10
             ),
             # แกน X ที่ 2 (Distance (m)) - แยกขนานลงมาด้านล่าง
             xaxis2=dict(
                 title=dict(text="Distance (m)", font=dict(color="#FFFFFF", size=11)),
                 overlaying="x",
                 anchor="free",
-                position=0.0,   # วางแถบระยะทางแยกเป็นกรอบด้านล่างสุดที่ y=0.0
+                position=0.0,
                 tickmode="array",
                 tickvals=tick_vals,
                 ticktext=tick_distances,
