@@ -4,11 +4,10 @@ from plotly.subplots import make_subplots
 import streamlit as st
 import io
 import re
-from datetime import timedelta
 
-# 1. ตั้งค่า Page Config
+# 1. ตั้งค่า Page Config (Datapaq NB1)
 st.set_page_config(
-    page_title="Recorder NB1 Debinder",
+    page_title="Datapaq NB1",
     page_icon="🏭",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -156,16 +155,16 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 3. แสดงชื่อโปรแกรมหลัก
-st.title("🏭 Recorder NB1 Debinder")
+st.title("🏭 Datapaq NB1")
 
-# 4. ฟังก์ชันคำนวณเวลา Elapsed Time จาก Interval (00:00:01)
+# 4. ฟังก์ชันแปลงวินาทีเป็นรูปแบบ HH:MM:SS
 def format_seconds_to_time(total_seconds):
     hours = int(total_seconds // 3600)
     minutes = int((total_seconds % 3600) // 60)
     seconds = int(total_seconds % 60)
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
-# 5. ฟังก์ชันอ่านไฟล์ CSV และคำนวณเวลาแกน X ตาม Interval
+# 5. ฟังก์ชันอ่านและ Parse ไฟล์ CSV
 def parse_single_file(uploaded_file):
     uploaded_file.seek(0)
     raw_bytes = uploaded_file.read()
@@ -262,7 +261,7 @@ def to_excel_bytes(dataframe):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df_export = dataframe.copy()
-        df_export.to_excel(writer, index=False, sheet_name='Debinder Data')
+        df_export.to_excel(writer, index=False, sheet_name='Datapaq Data')
     output.seek(0)
     return output.getvalue()
 
@@ -281,12 +280,12 @@ uploaded_files = st.sidebar.file_uploader(
 
 # 7. แสดงผลกราฟและปุ่มเลือกดาวน์โหลด Excel
 if uploaded_files:
-    raw_df = process_multiple_files(uploaded_files)
+    df = process_multiple_files(uploaded_files)
     
-    if raw_df.empty:
-        st.error("⚠️ ไม่สามารถอ่านข้อมูลจากไฟล์ที่อัปโหลดได้ กรุณาตรวจสอบว่าเป็นไฟล์ CSV จาก Recorder หรือไม่")
+    if df.empty:
+        st.error("⚠️ ไม่สามารถอ่านข้อมูลจากไฟล์ที่อัปโหลดได้ กรุณาตรวจสอบว่าเป็นไฟล์ CSV จาก Recorder/Datapaq หรือไม่")
     else:
-        st.sidebar.success(f"รวมข้อมูลสำเร็จ {len(uploaded_files)} ไฟล์ ({len(raw_df)} แถว)")
+        st.sidebar.success(f"รวมข้อมูลสำเร็จ {len(uploaded_files)} ไฟล์ ({len(df)} แถว)")
 
         st.sidebar.markdown("---")
         st.sidebar.header("🎛️ Dynamic Controls")
@@ -294,51 +293,36 @@ if uploaded_files:
         # ตัวเลือกแกน X
         x_axis_mode = st.sidebar.radio(
             "📍 เลือกแกน X (X-Axis Mode):",
-            ["Time (Interval = 00:00:01)", "Distance (m / mm) - Coming Soon"],
+            ["Time (HH:MM:SS)", "Distance (m / mm) - Coming Soon"],
             index=0
         )
-        
-        min_sec = int(raw_df["ElapsedSeconds"].min())
-        max_sec = int(raw_df["ElapsedSeconds"].max())
-        
-        selected_sec_range = st.sidebar.slider(
-            "⏱️ ช่วงเวลา (Elapsed Time):",
-            min_value=min_sec,
-            max_value=max_sec,
-            value=(min_sec, max_sec),
-            format="%d s"
-        )
-        
-        st.sidebar.caption(f"ช่วงที่เลือก: `{format_seconds_to_time(selected_sec_range[0])}` ถึง `{format_seconds_to_time(selected_sec_range[1])}`")
 
-        df = raw_df[(raw_df["ElapsedSeconds"] >= selected_sec_range[0]) & (raw_df["ElapsedSeconds"] <= selected_sec_range[1])].copy()
-
-        st.subheader("📊 Debinder 8-Probe Temperature Monitor (X-Axis: Interval = 00:00:01)")
+        st.subheader("📊 Debinder 8-Probe Temperature Monitor")
 
         # สร้างกราฟ Plotly
         fig = make_subplots(specs=[[{"secondary_y": False}]])
         
-        # พาเลทสีสว่างสำหรับ 8 Probes
+        # 🎨 สี Probes ตรงตามภาพตาราง Datapaq (#1 ถึง #8)
         probe_colors = [
-            "#FF3333",  # Probe 1 - Red
-            "#FF8C00",  # Probe 2 - Dark Orange
-            "#FFD700",  # Probe 3 - Gold
-            "#00FF66",  # Probe 4 - Lime Green
-            "#00FFFF",  # Probe 5 - Cyan
-            "#1E90FF",  # Probe 6 - Dodger Blue
-            "#9932CC",  # Probe 7 - Dark Orchid
-            "#FF1493"   # Probe 8 - Deep Pink
+            "#FF0000",  # Probe #1 - Red (แดง)
+            "#00FF00",  # Probe #2 - Green (เขียว)
+            "#0000FF",  # Probe #3 - Blue (น้ำเงิน)
+            "#8B4513",  # Probe #4 - Brown (น้ำตาล)
+            "#FF00FF",  # Probe #5 - Pink / Magenta (ชมพู)
+            "#DAA520",  # Probe #6 - Golden Yellow (เหลืองทอง)
+            "#800080",  # Probe #7 - Purple (ม่วง)
+            "#00FFFF"   # Probe #8 - Cyan / Light Blue (ฟ้า)
         ]
 
         # กำหนด Column แกน X
         x_data = df["Time (HH:MM:SS)"]
-        x_title = "Time (HH:MM:SS) [Interval: 00:00:01]"
+        x_title = "Time (HH:MM:SS)"
 
         if "Distance" in x_axis_mode and "Distance" in df.columns:
             x_data = df["Distance"]
             x_title = "Distance"
 
-        # ดึง คอลัมน์ Probe ทั้ง 8
+        # Plot ข้อมูล Probe ทั้ง 8 พร้อมจับคู่สีตามตำแหน่ง
         probe_cols = [c for c in df.columns if c.startswith("Probe #")]
         for idx, col in enumerate(probe_cols[:8]):
             fig.add_trace(
@@ -401,7 +385,7 @@ if uploaded_files:
             with col_opt1:
                 custom_filename = st.text_input(
                     "ตั้งชื่อไฟล์ดาวน์โหลด:", 
-                    value="debinder_8probes_interval_data.xlsx"
+                    value="datapaq_nb1_8probes_data.xlsx"
                 )
                 if not custom_filename.endswith('.xlsx'):
                     custom_filename += '.xlsx'
