@@ -174,6 +174,14 @@ def format_seconds_to_time(total_seconds):
     seconds = int(total_seconds % 60)
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
+# ฟังก์ชันแปลง Hex Color เป็น RGBA เพื่อควบคุมความโปร่งใส
+def hex_to_rgba(hex_str, opacity=0.15):
+    hex_str = hex_str.lstrip('#')
+    r = int(hex_str[0:2], 16)
+    g = int(hex_str[2:4], 16)
+    b = int(hex_str[4:6], 16)
+    return f"rgba({r}, {g}, {b}, {opacity})"
+
 # 5. ฟังก์ชันอ่านไฟล์ CSV และดึงข้อมูลพร้อมดึงค่า #title จาก Header อย่างแม่นยำ
 def parse_single_file(uploaded_file):
     uploaded_file.seek(0)
@@ -312,7 +320,7 @@ uploaded_files = st.sidebar.file_uploader(
     accept_multiple_files=True
 )
 
-# 7. แสดงผล Header Metadata รูปแบบ #key = value + กราฟ
+# 7. แสดงผล Header Metadata รูปแบบ #key = value + กราฟพร้อมโซนเวลา
 if uploaded_files:
     df, metadata = process_multiple_files(uploaded_files)
     
@@ -329,6 +337,47 @@ if uploaded_files:
             "📍 เลือกแกน X (X-Axis Mode):",
             ["Time (HH:MM:SS)", "Distance (m / mm) - Coming Soon"],
             index=0
+        )
+
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("🏷️ กำหนดโซนเวลา (Time Zones)")
+        
+        # กำหนดช่วงเวลาโซนทั้ง 23 โซนตามที่คุณระบุ
+        default_zones_df = pd.DataFrame([
+            {"Start Time": "00:00:00", "End Time": "00:02:14", "Zone Name": "Dryer Z#1"},
+            {"Start Time": "00:02:15", "End Time": "00:04:28", "Zone Name": "Dryer Z#2"},
+            {"Start Time": "00:04:29", "End Time": "00:04:58", "Zone Name": "EXT Dryer"},
+            {"Start Time": "00:04:59", "End Time": "00:05:26", "Zone Name": "ENT DB"},
+            {"Start Time": "00:05:27", "End Time": "00:07:41", "Zone Name": "DB Z#1"},
+            {"Start Time": "00:07:42", "End Time": "00:09:32", "Zone Name": "DB Z#2"},
+            {"Start Time": "00:09:33", "End Time": "00:11:23", "Zone Name": "DB Z#3"},
+            {"Start Time": "00:11:24", "End Time": "00:13:38", "Zone Name": "DB Z#4"},
+            {"Start Time": "00:13:39", "End Time": "00:15:34", "Zone Name": "XFER#1"},
+            {"Start Time": "00:15:35", "End Time": "00:17:48", "Zone Name": "Z#1"},
+            {"Start Time": "00:17:49", "End Time": "00:19:43", "Zone Name": "Z#2"},
+            {"Start Time": "00:19:44", "End Time": "00:21:40", "Zone Name": "Z#3"},
+            {"Start Time": "00:21:41", "End Time": "00:23:07", "Zone Name": "Z#4"},
+            {"Start Time": "00:23:08", "End Time": "00:24:33", "Zone Name": "Z#5"},
+            {"Start Time": "00:24:34", "End Time": "00:25:59", "Zone Name": "Z#6"},
+            {"Start Time": "00:26:00", "End Time": "00:27:37", "Zone Name": "Z#7"},
+            {"Start Time": "00:27:38", "End Time": "00:29:19", "Zone Name": "WatCool#1"},
+            {"Start Time": "00:29:20", "End Time": "00:30:41", "Zone Name": "WatCool#2"},
+            {"Start Time": "00:30:42", "End Time": "00:32:02", "Zone Name": "Exit curtain box"},
+            {"Start Time": "00:32:03", "End Time": "00:32:28", "Zone Name": "XFER#2"},
+            {"Start Time": "00:32:29", "End Time": "00:33:21", "Zone Name": "AirCool#1"},
+            {"Start Time": "00:33:22", "End Time": "00:34:15", "Zone Name": "AirCool#2"},
+            {"Start Time": "00:34:16", "End Time": "00:35:35", "Zone Name": "Exit"}
+        ])
+
+        edited_zones = st.sidebar.data_editor(
+            default_zones_df,
+            num_rows="dynamic",
+            use_container_width=True,
+            column_config={
+                "Start Time": st.column_config.TextColumn("เริ่ม", default="00:00:00"),
+                "End Time": st.column_config.TextColumn("สิ้นสุด", default="00:05:00"),
+                "Zone Name": st.column_config.TextColumn("ชื่อโซน", default="Zone Name")
+            }
         )
 
         # 📋 แสดงผล Header Metadata รูปแบบ #key = value
@@ -364,6 +413,13 @@ if uploaded_files:
             "#00FFFF"   # Probe #8 - Cyan
         ]
 
+        # พาเลทสีDesaturated สำหรับระบายโซนเวลาให้อย่างสวยงาม ไม่บดบังเส้นกราฟ
+        zone_palette = [
+            "#FF9F43", "#00CEC9", "#10AC84", "#9B59B6", "#FF6B6B", 
+            "#FECA57", "#48DBFB", "#FF9FF3", "#54A0FF", "#5F27CD",
+            "#00D2D3", "#FF9F1A", "#2E86DE", "#EE5253", "#0ABDE3"
+        ]
+
         # กำหนด Column แกน X
         x_data = df["Time (HH:MM:SS)"]
         x_title = "Time (HH:MM:SS)"
@@ -372,7 +428,32 @@ if uploaded_files:
             x_data = df["Distance"]
             x_title = "Distance"
 
-        # Plot ข้อมูล Probe ทั้ง 8
+        # 1. ระบายสีแถบโซนเวลา (Background Transparent Shading) + วางชื่อโซนด้านบนสุด
+        if edited_zones is not None and not edited_zones.empty:
+            for idx, z_row in edited_zones.iterrows():
+                start_t = str(z_row.get("Start Time", "")).strip()
+                end_t = str(z_row.get("End Time", "")).strip()
+                z_name = str(z_row.get("Zone Name", "")).strip()
+                
+                if start_t and end_t and z_name:
+                    color_hex = zone_palette[idx % len(zone_palette)]
+                    fill_rgba = hex_to_rgba(color_hex, 0.15)
+                    line_rgba = hex_to_rgba(color_hex, 0.45)
+                    
+                    fig.add_vrect(
+                        x0=start_t,
+                        x1=end_t,
+                        fillcolor=fill_rgba,
+                        layer="below",
+                        line_width=1,
+                        line_dash="dash",
+                        line_color=line_rgba,
+                        annotation_text=f"<b>{z_name}</b>",
+                        annotation_position="top left",
+                        annotation_font=dict(color="#FFFFFF", size=10, family="Arial")
+                    )
+
+        # 2. Plot ข้อมูล Probe ทั้ง 8
         probe_cols = [c for c in df.columns if c.startswith("Probe #")]
         for idx, col in enumerate(probe_cols[:8]):
             fig.add_trace(
@@ -398,7 +479,7 @@ if uploaded_files:
                 borderwidth=1.5,
                 orientation="v",
                 yanchor="top",
-                y=0.88,       # 🎯 ปรับย้ายลงมาเพื่อไม่ให้ชนกับ แถบเครื่องมือ (Modebar Toolbar)
+                y=0.88,
                 xanchor="left",
                 x=1.02
             ),
@@ -418,8 +499,8 @@ if uploaded_files:
                 linecolor="#555555",
                 range=[0, 650]  # Scale 0 - 650 °C
             ),
-            height=550,
-            margin=dict(l=60, r=240, t=20, b=40)  # 🎯 เพิ่ม margin ขวาเพื่อรองรับความกว้างของ Legend
+            height=580,
+            margin=dict(l=60, r=240, t=30, b=40)
         )
 
         st.plotly_chart(fig, use_container_width=True)
