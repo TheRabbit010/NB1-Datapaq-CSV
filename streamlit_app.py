@@ -369,11 +369,11 @@ if uploaded_files:
             angle_setting = -90
         else:
             zones_data = [
-                {"Start Time": "00:00:00", "End Time": "00:04:58", "Zone Name": "Dryer", "Color": "#FF8C00"},      # ส้มอุ่น (อบแห้ง ~300°C)
-                {"Start Time": "00:04:59", "End Time": "00:15:34", "Zone Name": "Debinder", "Color": "#E63946"},   # แดงส้ม (กำจัดกาวยาง ~350°C)
-                {"Start Time": "00:15:35", "End Time": "00:27:37", "Zone Name": "Brazing", "Color": "#FF0033"},    # แดงเพลิงเข้ม (ความร้อนสูงสุุด ~600°C)
-                {"Start Time": "00:27:38", "End Time": "00:34:15", "Zone Name": "Cool", "Color": "#00B4D8"},       # ฟ้าเย็น (โซนหล่อเย็น)
-                {"Start Time": "00:34:16", "End Time": "00:35:35", "Zone Name": "Exit", "Color": "#6C757D"}        # เทาเย็น (ทางออก)
+                {"Start Time": "00:00:00", "End Time": "00:04:58", "Zone Name": "Dryer", "Color": "#FF8C00"},      # ส้มอุ่น (~300°C)
+                {"Start Time": "00:04:59", "End Time": "00:15:34", "Zone Name": "Debinder", "Color": "#E63946"},   # แดงส้ม (~350°C)
+                {"Start Time": "00:15:35", "End Time": "00:27:37", "Zone Name": "Brazing", "Color": "#FF0033"},    # แดงเพลิง (~600°C)
+                {"Start Time": "00:27:38", "End Time": "00:34:15", "Zone Name": "Cool", "Color": "#00B4D8"},       # ฟ้าเย็น
+                {"Start Time": "00:34:16", "End Time": "00:35:35", "Zone Name": "Exit", "Color": "#6C757D"}        # เทาเย็น
             ]
             angle_setting = 0
 
@@ -417,7 +417,7 @@ if uploaded_files:
             "#00D2D3", "#FF9F1A", "#2E86DE", "#EE5253", "#0ABDE3"
         ]
 
-        # 1. Plot ข้อมูล Probe ทั้ง 8 บนแกนเวลา
+        # 1. Plot ข้อมูล Probe ทั้ง 8 บนแกนเวลาหลัก (Time (HH:MM:SS))
         probe_cols = [c for c in df.columns if c.startswith("Probe #")]
         for idx, col in enumerate(probe_cols[:8]):
             fig.add_trace(
@@ -430,7 +430,18 @@ if uploaded_files:
                 )
             )
 
-        # 2. วาดพื้นหลังโซนเวลา/กลุ่มงานสลับสีแบบโปร่งใส + วางชื่อโซน
+        # 🎯 2. เพิ่ม Dummy Trace เพื่อเปิดใช้งานและผูกข้อมูลกับ xaxis2 (Distance (m))
+        fig.add_trace(
+            go.Scatter(
+                x=df["Distance (m)"],
+                y=[None] * len(df),
+                xaxis="x2",
+                showlegend=False,
+                hoverinfo="skip"
+            )
+        )
+
+        # 3. วาดพื้นหลังโซนเวลา/กลุ่มงานสลับสีแบบโปร่งใส + วางชื่อโซน
         for idx, z_item in enumerate(zones_data):
             start_t = z_item["Start Time"]
             end_t = z_item["End Time"]
@@ -468,15 +479,11 @@ if uploaded_files:
                 textangle=angle_setting
             )
 
-        # คำนวณช่วง Tick Values เว้นช่วงให้สวยงาม
-        step_tick = max(1, len(df) // 18)
+        # คำนวณช่วง Tick Values เว้นช่วงสเกลแกนเวลาและระยะทางให้สมดุล
+        step_tick = max(1, len(df) // 16)
         tick_indices = list(range(0, len(df), step_tick))
         if (len(df) - 1) not in tick_indices:
             tick_indices.append(len(df) - 1)
-            
-        tick_vals = df.loc[tick_indices, "Time (HH:MM:SS)"].tolist()
-        tick_times = tick_vals
-        tick_distances = [f"{row['Distance (m)']:.2f}" for _, row in df.loc[tick_indices].iterrows()]
 
         fig.update_layout(
             template="plotly_dark",
@@ -503,15 +510,14 @@ if uploaded_files:
                 gridcolor="rgba(255,255,255,0.08)",
                 zeroline=False,
                 linecolor="#555555",
-                domain=[0.18, 1.0],
+                domain=[0.22, 1.0],  # ย่อความสูงกราฟเพื่อเปิดพื้นที่ 22% ด้านล่างให้แกน X สองแถบ
                 range=[0, 650]
             ),
-            # แกน X ที่ 1 (Time (hh:mm:ss))
+            # แกน X ที่ 1 (Time (hh:mm:ss)) - แถบส่วนบน
             xaxis=dict(
                 title=dict(text="Time (hh:mm:ss)", font=dict(color="#FFFFFF", size=11)),
                 tickmode="array",
-                tickvals=tick_vals,
-                ticktext=tick_times,
+                tickvals=df.loc[tick_indices, "Time (HH:MM:SS)"].tolist(),
                 tickfont=dict(color="#CCCCCC", size=10),
                 showgrid=True,
                 gridcolor="rgba(255,255,255,0.08)",
@@ -519,25 +525,25 @@ if uploaded_files:
                 linewidth=1,
                 linecolor="#888888",
                 anchor="free",
-                position=0.10
+                position=0.12  # ลอยอยู่ที่ความสูง y=0.12
             ),
-            # แกน X ที่ 2 (Distance (m)) - แยกขนานลงมาด้านล่าง
+            # 🎯 แกน X ที่ 2 (Distance (m)) - แถบแยกด้านล่างสุด
             xaxis2=dict(
-                title=dict(text="Distance (m)", font=dict(color="#FFFFFF", size=11)),
+                title=dict(text="Distance (m)", font=dict(color="#F0B90B", size=11)),
                 overlaying="x",
                 anchor="free",
-                position=0.0,
+                position=0.00,  # อยู่ล่างสุดที่ y=0.00 แยกกรอบชัดเจน
                 tickmode="array",
-                tickvals=tick_vals,
-                ticktext=tick_distances,
-                tickfont=dict(color="#CCCCCC", size=10),
+                tickvals=df.loc[tick_indices, "Distance (m)"].tolist(),
+                ticktext=[f"{d:.2f}" for d in df.loc[tick_indices, "Distance (m)"]],
+                tickfont=dict(color="#F0B90B", size=10),
                 showgrid=False,
                 showline=True,
                 linewidth=1,
-                linecolor="#888888"
+                linecolor="#F0B90B"
             ),
-            height=630,
-            margin=dict(l=60, r=240, t=50, b=50)
+            height=660,
+            margin=dict(l=60, r=240, t=50, b=120)  # เพิ่ม margin ด้านล่างลึกขึ้นเป็น 120px
         )
 
         st.plotly_chart(fig, use_container_width=True)
