@@ -167,17 +167,12 @@ st.markdown("""
 # 3. แสดงชื่อโปรแกรมหลัก
 st.title("🏭 Datapaq NB1")
 
-# 4. ฟังก์ชันแปลงวินาทีเป็นรูปแบบ HH:MM:SS หรือ MM:SS
+# 4. ฟังก์ชันแปลงวินาทีเป็นรูปแบบ HH:MM:SS
 def format_seconds_to_time(total_seconds):
     hours = int(total_seconds // 3600)
     minutes = int((total_seconds % 3600) // 60)
     seconds = int(total_seconds % 60)
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-
-def format_dwell_time(seconds):
-    mins = int(seconds // 60)
-    secs = int(seconds % 60)
-    return f"{mins}:{secs:02d} min ({seconds}s)"
 
 # ฟังก์ชันแปลง Hex Color เป็น RGBA
 def hex_to_rgba(hex_str, opacity=0.25):
@@ -515,7 +510,7 @@ if uploaded_files:
                 gridcolor="rgba(255,255,255,0.08)",
                 zeroline=False,
                 linecolor="#555555",
-                domain=[0.22, 1.0],
+                domain=[0.22, 1.0],  # ย่อความสูงกราฟเพื่อเปิดพื้นที่ด้านล่างให้แกน X สองแถบ
                 range=[0, 650]
             ),
             # แกน X ที่ 1 (Time (hh:mm:ss)) - แถบส่วนบน
@@ -530,14 +525,14 @@ if uploaded_files:
                 linewidth=1,
                 linecolor="#888888",
                 anchor="free",
-                position=0.12
+                position=0.12  # ลอยอยู่ที่ความสูง y=0.12
             ),
             # แกน X ที่ 2 (Distance (m)) - แถบแยกด้านล่างสุด
             xaxis2=dict(
                 title=dict(text="Distance (m)", font=dict(color="#F0B90B", size=11)),
                 overlaying="x",
                 anchor="free",
-                position=0.00,
+                position=0.00,  # อยู่ล่างสุดที่ y=0.00 แยกกรอบชัดเจน
                 tickmode="array",
                 tickvals=df.loc[tick_indices, "Distance (m)"].tolist(),
                 ticktext=[f"{d:.2f}" for d in df.loc[tick_indices, "Distance (m)"]],
@@ -554,71 +549,42 @@ if uploaded_files:
         st.plotly_chart(fig, use_container_width=True)
 
         # ---------------------------------------------------------
-        # 📊 ตารางสรุปค่าสูงสุด และ Dwell Time ใต้กราฟ
+        # 📊 ตารางสรุปค่า (เฉพาะตัวเลขสำหรับ Copy ไปวางใน Google Sheets)
         # ---------------------------------------------------------
-        st.markdown("### 📊 ตารางสรุปผลการวิเคราะห์แต่ละกลุ่มงาน (Process Analysis Summary)")
+        st.markdown("### 📊 ตารางสรุปผลการวิเคราะห์ (Data Table for Google Sheets Copy)")
 
-        # คำนวณช่วง ElapsedSeconds ของแต่ละกลุ่มงาน
-        # Dryer: 00:00:00 - 00:04:58 (0 - 298 วินาที)
-        # Debinder: 00:04:59 - 00:15:34 (299 - 934 วินาที)
-        # Brazing: 00:15:35 - 00:27:37 (935 - 1657 วินาที)
-        
         dryer_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 298)]
         debinder_subset = df[(df["ElapsedSeconds"] >= 299) & (df["ElapsedSeconds"] <= 934)]
         brazing_subset = df[(df["ElapsedSeconds"] >= 935) & (df["ElapsedSeconds"] <= 1657)]
 
+        def format_excel_time(seconds):
+            hours = int(seconds // 3600)
+            mins = int((seconds % 3600) // 60)
+            secs = int(seconds % 60)
+            return f"{hours}:{mins:02d}:{secs:02d}"
+
         summary_rows = []
         for col_name in probe_cols[:8]:
-            # 1. Dryer Max & Dwell > 175°C
-            d_max = dryer_subset[col_name].max() if not dryer_subset.empty else 0.0
-            d_dwell_sec = (dryer_subset[col_name] > 175).sum() if not dryer_subset.empty else 0
+            # 1. Dryer Max
+            d_max = round(dryer_subset[col_name].max(), 1) if not dryer_subset.empty else 0.0
             
-            # 2. Debinder Max & Dwell > 175°C
-            db_max = debinder_subset[col_name].max() if not debinder_subset.empty else 0.0
-            db_dwell_sec = (debinder_subset[col_name] > 175).sum() if not debinder_subset.empty else 0
+            # 2. Debinder Max
+            db_max = round(debinder_subset[col_name].max(), 1) if not debinder_subset.empty else 0.0
             
-            # 3. Brazing Max & 3 Dwell Time Groups (>577°C, >583°C, >600°C)
-            br_max = brazing_subset[col_name].max() if not brazing_subset.empty else 0.0
+            # 3. Brazing Max & Dwell Times
+            br_max = round(brazing_subset[col_name].max(), 1) if not brazing_subset.empty else 0.0
             br_dwell_577 = (brazing_subset[col_name] > 577).sum() if not brazing_subset.empty else 0
             br_dwell_583 = (brazing_subset[col_name] > 583).sum() if not brazing_subset.empty else 0
             br_dwell_600 = (brazing_subset[col_name] > 600).sum() if not brazing_subset.empty else 0
 
-            # ตรวจสอบตำแหน่ง Probe (Center vs Corner)
-            is_center = "Probe #2" in col_name or "Probe #5" in col_name or "center" in col_name.lower() or "middle" in col_name.lower()
-            
-            # สถานะตรวจสอบเกณฑ์มาตรฐาน (Pass / Fail)
-            d_temp_pass = "✅ Pass" if 175 <= d_max <= 260 else "❌ Fail"
-            d_dwell_pass = "✅ Pass" if d_dwell_sec >= 60 else "❌ Fail" # std > 1 min
-            
-            db_temp_pass = "✅ Pass" if 200 <= db_max <= 375 else "❌ Fail"
-            db_dwell_pass = "✅ Pass" if db_dwell_sec >= 120 else "❌ Fail" # std > 2 min
-            
-            # Brazing Max Temp Pass/Fail
-            if is_center:
-                br_temp_pass = "✅ Pass" if 583 <= br_max <= 607 else "❌ Fail"
-            else:
-                br_temp_pass = "✅ Pass" if 596 <= br_max <= 610 else "❌ Fail"
-                
-            # Brazing Dwell Time Pass/Fail Checks:
-            # Group 1: 577°C (std 2:30 - 6:00 min = 150s - 360s)
-            br_577_pass = "✅ Pass" if (150 <= br_dwell_577 <= 360) else "❌ Fail"
-            
-            # Group 2: 583°C (std 2:30 - 6:00 min = 150s - 360s)
-            br_583_pass = "✅ Pass" if (150 <= br_dwell_583 <= 360) else "❌ Fail"
-            
-            # Group 3: 600°C (std < 4:00 min = < 240s)
-            br_600_pass = "✅ Pass" if (br_dwell_600 < 240) else "❌ Fail"
-
             summary_rows.append({
                 "Probe Name": col_name,
-                "Dryer Max (°C)": f"{d_max:.1f} °C ({d_temp_pass})",
-                "Dryer Dwell >175°C": f"{format_dwell_time(d_dwell_sec)} ({d_dwell_pass})",
-                "Debinder Max (°C)": f"{db_max:.1f} °C ({db_temp_pass})",
-                "Debinder Dwell >175°C": f"{format_dwell_time(db_dwell_sec)} ({db_dwell_pass})",
-                "Brazing Max (°C)": f"{br_max:.1f} °C ({br_temp_pass})",
-                "Brazing Dwell >577°C": f"{format_dwell_time(br_dwell_577)} ({br_577_pass})",
-                "Brazing Dwell >583°C": f"{format_dwell_time(br_dwell_583)} ({br_583_pass})",
-                "Brazing Dwell >600°C": f"{format_dwell_time(br_dwell_600)} ({br_600_pass})"
+                "Brazing Max (°C)": br_max,
+                "Debinder Max (°C)": db_max,
+                "Dryer Max (°C)": d_max,
+                "at 600°C / probe": format_excel_time(br_dwell_600),
+                "at 583°C / probe": format_excel_time(br_dwell_583),
+                "at 577°C / probe": format_excel_time(br_dwell_577)
             })
 
         summary_df = pd.DataFrame(summary_rows)
