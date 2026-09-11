@@ -608,17 +608,18 @@ if uploaded_files:
                 format_seconds_to_time(d_dwell_175)
             ])
 
+        # ตัดคำว่า / probe ออกจากหัวตาราง
         multi_cols = pd.MultiIndex.from_tuples([
             ("", "Location"),
             ("", "Probe"),
             ("Max Temp (°C)", "Brazing"),
             ("Max Temp (°C)", "Debinder"),
             ("Max Temp (°C)", "Dryer"),
-            ("Dwell Time [Brazing Zone]", "above 600°C / probe"),
-            ("Dwell Time [Brazing Zone]", "above 583°C / probe"),
-            ("Dwell Time [Brazing Zone]", "above 577°C / probe"),
-            ("Dwell Time [Debinder Zone]", "above 200°C / probe"),
-            ("Dwell Time [Dryer Zone]", "above 175°C / probe")
+            ("Dwell Time [Brazing Zone]", "above 600°C"),
+            ("Dwell Time [Brazing Zone]", "above 583°C"),
+            ("Dwell Time [Brazing Zone]", "above 577°C"),
+            ("Dwell Time [Debinder Zone]", "above 200°C"),
+            ("Dwell Time [Dryer Zone]", "above 175°C")
         ])
 
         display_summary_df = pd.DataFrame(summary_rows, columns=multi_cols)
