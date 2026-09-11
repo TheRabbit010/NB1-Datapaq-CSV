@@ -167,22 +167,34 @@ st.markdown("""
 # 3. แสดงชื่อโปรแกรมหลัก
 st.title("🏭 Datapaq NB1")
 
-# 4. ฟังก์ชันแปลงวินาทีเป็นรูปแบบ HH:MM:SS
+# 4. ฟังก์ชันแปลงข้อความ HH:MM:SS ให้เป็น วินาที (Seconds)
+def time_to_seconds(t_str):
+    try:
+        parts = str(t_str).strip().split(":")
+        if len(parts) == 3:
+            return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+        elif len(parts) == 2:
+            return int(parts[0]) * 60 + int(parts[1])
+    except Exception:
+        pass
+    return 0
+
+# ฟังก์ชันแปลงวินาทีเป็นรูปแบบ HH:MM:SS
 def format_seconds_to_time(total_seconds):
     hours = int(total_seconds // 3600)
     minutes = int((total_seconds % 3600) // 60)
     seconds = int(total_seconds % 60)
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
-# ฟังก์ชันแปลง Hex Color เป็น RGBA เพื่อควบคุมความโปร่งใส
-def hex_to_rgba(hex_str, opacity=0.15):
+# ฟังก์ชันแปลง Hex Color เป็น RGBA
+def hex_to_rgba(hex_str, opacity=0.25):
     hex_str = hex_str.lstrip('#')
     r = int(hex_str[0:2], 16)
     g = int(hex_str[2:4], 16)
     b = int(hex_str[4:6], 16)
     return f"rgba({r}, {g}, {b}, {opacity})"
 
-# 5. ฟังก์ชันอ่านไฟล์ CSV และดึงข้อมูลพร้อมดึงค่า #title จาก Header อย่างแม่นยำ
+# 5. ฟังก์ชันอ่านไฟล์ CSV และดึงข้อมูล
 def parse_single_file(uploaded_file):
     uploaded_file.seek(0)
     raw_bytes = uploaded_file.read()
@@ -218,10 +230,8 @@ def parse_single_file(uploaded_file):
         if not line_str:
             continue
         
-        # อ่านค่า Metadata ใน Header
         if line_str.startswith("#"):
             line_clean = line_str.lstrip("#").strip()
-            
             if "=" in line_clean:
                 key, val = [p.strip() for p in line_clean.split("=", 1)]
                 val = val.rstrip(",")
@@ -247,7 +257,6 @@ def parse_single_file(uploaded_file):
                 elif key.isdigit():
                     ch_num = int(key)
                     probe_labels[ch_num] = val
-
         else:
             parts = [p.strip() for p in line_str.split(",") if p.strip() != ""]
             if len(parts) >= 8:
@@ -320,7 +329,7 @@ uploaded_files = st.sidebar.file_uploader(
     accept_multiple_files=True
 )
 
-# 7. แสดงผล Header Metadata รูปแบบ #key = value + กราฟพร้อมโซนเวลา
+# 7. แสดงผล Header Metadata + กราฟพร้อมโซนเวลา
 if uploaded_files:
     df, metadata = process_multiple_files(uploaded_files)
     
@@ -342,7 +351,7 @@ if uploaded_files:
         st.sidebar.markdown("---")
         st.sidebar.subheader("🏷️ กำหนดโซนเวลา (Time Zones)")
         
-        # กำหนดช่วงเวลาโซนทั้ง 23 โซนตามที่คุณระบุ
+        # ช่วงเวลาโซนทั้ง 23 โซน
         default_zones_df = pd.DataFrame([
             {"Start Time": "00:00:00", "End Time": "00:02:14", "Zone Name": "Dryer Z#1"},
             {"Start Time": "00:02:15", "End Time": "00:04:28", "Zone Name": "Dryer Z#2"},
@@ -380,7 +389,7 @@ if uploaded_files:
             }
         )
 
-        # 📋 แสดงผล Header Metadata รูปแบบ #key = value
+        # 📋 แสดงผล Header Metadata
         col_h1, col_h2 = st.columns(2)
         with col_h1:
             st.markdown(f"""
@@ -413,7 +422,7 @@ if uploaded_files:
             "#00FFFF"   # Probe #8 - Cyan
         ]
 
-        # พาเลทสีDesaturated สำหรับระบายโซนเวลาให้อย่างสวยงาม ไม่บดบังเส้นกราฟ
+        # พาเลทสีสำหรับสลับระบายพื้นหลังโซน
         zone_palette = [
             "#FF9F43", "#00CEC9", "#10AC84", "#9B59B6", "#FF6B6B", 
             "#FECA57", "#48DBFB", "#FF9FF3", "#54A0FF", "#5F27CD",
@@ -428,32 +437,7 @@ if uploaded_files:
             x_data = df["Distance"]
             x_title = "Distance"
 
-        # 1. ระบายสีแถบโซนเวลา (Background Transparent Shading) + วางชื่อโซนด้านบนสุด
-        if edited_zones is not None and not edited_zones.empty:
-            for idx, z_row in edited_zones.iterrows():
-                start_t = str(z_row.get("Start Time", "")).strip()
-                end_t = str(z_row.get("End Time", "")).strip()
-                z_name = str(z_row.get("Zone Name", "")).strip()
-                
-                if start_t and end_t and z_name:
-                    color_hex = zone_palette[idx % len(zone_palette)]
-                    fill_rgba = hex_to_rgba(color_hex, 0.15)
-                    line_rgba = hex_to_rgba(color_hex, 0.45)
-                    
-                    fig.add_vrect(
-                        x0=start_t,
-                        x1=end_t,
-                        fillcolor=fill_rgba,
-                        layer="below",
-                        line_width=1,
-                        line_dash="dash",
-                        line_color=line_rgba,
-                        annotation_text=f"<b>{z_name}</b>",
-                        annotation_position="top left",
-                        annotation_font=dict(color="#FFFFFF", size=10, family="Arial")
-                    )
-
-        # 2. Plot ข้อมูล Probe ทั้ง 8
+        # 1. Plot ข้อมูล Probe ทั้ง 8 ก่อน
         probe_cols = [c for c in df.columns if c.startswith("Probe #")]
         for idx, col in enumerate(probe_cols[:8]):
             fig.add_trace(
@@ -465,6 +449,42 @@ if uploaded_files:
                     line=dict(color=probe_colors[idx % len(probe_colors)], width=2)
                 )
             )
+
+        # 2. วาดพื้นหลังโซนเวลาสลับสีแบบโปร่งใส + วางชื่อโซน
+        if edited_zones is not None and not edited_zones.empty:
+            for idx, z_row in edited_zones.iterrows():
+                start_t = str(z_row.get("Start Time", "")).strip()
+                end_t = str(z_row.get("End Time", "")).strip()
+                z_name = str(z_row.get("Zone Name", "")).strip()
+                
+                if start_t and end_t and z_name:
+                    # หาค่าจุด X ในฝั่งเวลารายการเพื่อ mapping
+                    color_hex = zone_palette[idx % len(zone_palette)]
+                    fill_rgba = hex_to_rgba(color_hex, 0.25)
+                    line_rgba = hex_to_rgba(color_hex, 0.60)
+                    
+                    # เพิ่ม Shape แถบสีโซนลงบนกราฟ
+                    fig.add_vrect(
+                        x0=start_t,
+                        x1=end_t,
+                        fillcolor=fill_rgba,
+                        layer="below",
+                        line_width=1,
+                        line_dash="dot",
+                        line_color=line_rgba
+                    )
+                    
+                    # วางป้ายชื่อโซนด้านบนสุด
+                    fig.add_annotation(
+                        x=start_t,
+                        y=620,  # ด้านบนสุดของสเกล Y
+                        text=f"<b>{z_name}</b>",
+                        showarrow=False,
+                        xanchor="left",
+                        yanchor="bottom",
+                        font=dict(color="#FFFFFF", size=9, family="Arial Bold"),
+                        textangle=-90  # เอียงชื่อโซนขึ้นเพื่อป้องกันการเบียดกัน
+                    )
 
         fig.update_layout(
             template="plotly_dark",
@@ -499,8 +519,8 @@ if uploaded_files:
                 linecolor="#555555",
                 range=[0, 650]  # Scale 0 - 650 °C
             ),
-            height=580,
-            margin=dict(l=60, r=240, t=30, b=40)
+            height=600,
+            margin=dict(l=60, r=240, t=50, b=40)
         )
 
         st.plotly_chart(fig, use_container_width=True)
