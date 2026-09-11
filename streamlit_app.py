@@ -218,7 +218,6 @@ def parse_single_file(uploaded_file):
                 key, val = [p.strip() for p in line_clean.split("=", 1)]
                 val = val.rstrip(",")
                 
-                # ตรวจจับเฉพาะ key "#title" แบบตรงตัว
                 if key.lower() == "title":
                     metadata["title"] = val
                 elif key.lower() == "paqfile start date":
@@ -332,7 +331,7 @@ if uploaded_files:
             index=0
         )
 
-        # 📋 แสดงผล Header Metadata ตรงตามสไตล์ #key = value จากรูปภาพ
+        # 📋 แสดงผล Header Metadata รูปแบบ #key = value
         col_h1, col_h2 = st.columns(2)
         with col_h1:
             st.markdown(f"""
@@ -399,9 +398,9 @@ if uploaded_files:
                 borderwidth=1.5,
                 orientation="v",
                 yanchor="top",
-                y=1,
+                y=0.88,       # 🎯 ปรับย้ายลงมาเพื่อไม่ให้ชนกับ แถบเครื่องมือ (Modebar Toolbar)
                 xanchor="left",
-                x=1.05
+                x=1.02
             ),
             xaxis=dict(
                 title=dict(text=x_title, font=dict(color="#FFFFFF", size=12)),
@@ -420,7 +419,7 @@ if uploaded_files:
                 range=[0, 650]  # Scale 0 - 650 °C
             ),
             height=550,
-            margin=dict(l=60, r=220, t=10, b=40)
+            margin=dict(l=60, r=240, t=20, b=40)  # 🎯 เพิ่ม margin ขวาเพื่อรองรับความกว้างของ Legend
         )
 
         st.plotly_chart(fig, use_container_width=True)
