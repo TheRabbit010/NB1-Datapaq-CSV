@@ -559,13 +559,9 @@ if uploaded_files:
         # ---------------------------------------------------------
         st.markdown("### 📊 ตารางสรุปผลการวิเคราะห์ (Data Table for Google Sheets Copy)")
 
-        # คำนวณช่วงเวลาใหม่ตามที่ระบุ:
-        # Dryer: 00:00:00 - 00:04:30 (0 - 270s)
-        # Debinder: 00:05:30 - 00:14:00 (330 - 840s)
-        # Brazing: 00:15:35 - 00:29:20 (935 - 1760s)
-        dryer_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 270)]
-        debinder_subset = df[(df["ElapsedSeconds"] >= 330) & (df["ElapsedSeconds"] <= 840)]
-        brazing_subset = df[(df["ElapsedSeconds"] >= 935) & (df["ElapsedSeconds"] <= 1760)]
+        dryer_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 270)]      # Dryer: 00:00:00 - 00:04:30
+        debinder_subset = df[(df["ElapsedSeconds"] >= 330) & (df["ElapsedSeconds"] <= 840)]   # Debinder: 00:05:30 - 00:14:00
+        brazing_subset = df[(df["ElapsedSeconds"] >= 935) & (df["ElapsedSeconds"] <= 1759)]   # Brazing: 00:15:35 - 00:29:19
 
         def format_excel_time(seconds):
             hours = int(seconds // 3600)
