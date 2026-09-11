@@ -167,19 +167,7 @@ st.markdown("""
 # 3. แสดงชื่อโปรแกรมหลัก
 st.title("🏭 Datapaq NB1")
 
-# 4. ฟังก์ชันแปลงข้อความ HH:MM:SS ให้เป็น วินาที (Seconds)
-def time_to_seconds(t_str):
-    try:
-        parts = str(t_str).strip().split(":")
-        if len(parts) == 3:
-            return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
-        elif len(parts) == 2:
-            return int(parts[0]) * 60 + int(parts[1])
-    except Exception:
-        pass
-    return 0
-
-# ฟังก์ชันแปลงวินาทีเป็นรูปแบบ HH:MM:SS
+# 4. ฟังก์ชันแปลงวินาทีเป็นรูปแบบ HH:MM:SS
 def format_seconds_to_time(total_seconds):
     hours = int(total_seconds // 3600)
     minutes = int((total_seconds % 3600) // 60)
@@ -349,34 +337,51 @@ if uploaded_files:
         )
 
         st.sidebar.markdown("---")
-        st.sidebar.subheader("🏷️ กำหนดโซนเวลา (Time Zones)")
+        st.sidebar.subheader("🎨 โหมดแสดงสีพื้นหลัง (Background Shading Mode)")
         
-        # ช่วงเวลาโซนทั้ง 23 โซน
-        default_zones_df = pd.DataFrame([
-            {"Start Time": "00:00:00", "End Time": "00:02:14", "Zone Name": "Dryer Z#1"},
-            {"Start Time": "00:02:15", "End Time": "00:04:28", "Zone Name": "Dryer Z#2"},
-            {"Start Time": "00:04:29", "End Time": "00:04:58", "Zone Name": "EXT Dryer"},
-            {"Start Time": "00:04:59", "End Time": "00:05:26", "Zone Name": "ENT DB"},
-            {"Start Time": "00:05:27", "End Time": "00:07:41", "Zone Name": "DB Z#1"},
-            {"Start Time": "00:07:42", "End Time": "00:09:32", "Zone Name": "DB Z#2"},
-            {"Start Time": "00:09:33", "End Time": "00:11:23", "Zone Name": "DB Z#3"},
-            {"Start Time": "00:11:24", "End Time": "00:13:38", "Zone Name": "DB Z#4"},
-            {"Start Time": "00:13:39", "End Time": "00:15:34", "Zone Name": "XFER#1"},
-            {"Start Time": "00:15:35", "End Time": "00:17:48", "Zone Name": "Z#1"},
-            {"Start Time": "00:17:49", "End Time": "00:19:43", "Zone Name": "Z#2"},
-            {"Start Time": "00:19:44", "End Time": "00:21:40", "Zone Name": "Z#3"},
-            {"Start Time": "00:21:41", "End Time": "00:23:07", "Zone Name": "Z#4"},
-            {"Start Time": "00:23:08", "End Time": "00:24:33", "Zone Name": "Z#5"},
-            {"Start Time": "00:24:34", "End Time": "00:25:59", "Zone Name": "Z#6"},
-            {"Start Time": "00:26:00", "End Time": "00:27:37", "Zone Name": "Z#7"},
-            {"Start Time": "00:27:38", "End Time": "00:29:19", "Zone Name": "WatCool#1"},
-            {"Start Time": "00:29:20", "End Time": "00:30:41", "Zone Name": "WatCool#2"},
-            {"Start Time": "00:30:42", "End Time": "00:32:02", "Zone Name": "Exit curtain box"},
-            {"Start Time": "00:32:03", "End Time": "00:32:28", "Zone Name": "XFER#2"},
-            {"Start Time": "00:32:29", "End Time": "00:33:21", "Zone Name": "AirCool#1"},
-            {"Start Time": "00:33:22", "End Time": "00:34:15", "Zone Name": "AirCool#2"},
-            {"Start Time": "00:34:16", "End Time": "00:35:35", "Zone Name": "Exit"}
-        ])
+        color_shading_mode = st.sidebar.radio(
+            "เลือกโหมดแสดงสี:",
+            ["แสดงสีตามโซน (By Zone)", "แสดงสีตามกลุ่มงาน (By Process Group)"],
+            index=0
+        )
+
+        # กำหนดช่วงเวลาเริ่มต้นสำหรับแต่ละโหมด
+        if color_shading_mode == "แสดงสีตามโซน (By Zone)":
+            default_zones_df = pd.DataFrame([
+                {"Start Time": "00:00:00", "End Time": "00:02:14", "Zone Name": "Dryer Z#1"},
+                {"Start Time": "00:02:15", "End Time": "00:04:28", "Zone Name": "Dryer Z#2"},
+                {"Start Time": "00:04:29", "End Time": "00:04:58", "Zone Name": "EXT Dryer"},
+                {"Start Time": "00:04:59", "End Time": "00:05:26", "Zone Name": "ENT DB"},
+                {"Start Time": "00:05:27", "End Time": "00:07:41", "Zone Name": "DB Z#1"},
+                {"Start Time": "00:07:42", "End Time": "00:09:32", "Zone Name": "DB Z#2"},
+                {"Start Time": "00:09:33", "End Time": "00:11:23", "Zone Name": "DB Z#3"},
+                {"Start Time": "00:11:24", "End Time": "00:13:38", "Zone Name": "DB Z#4"},
+                {"Start Time": "00:13:39", "End Time": "00:15:34", "Zone Name": "XFER#1"},
+                {"Start Time": "00:15:35", "End Time": "00:17:48", "Zone Name": "Z#1"},
+                {"Start Time": "00:17:49", "End Time": "00:19:43", "Zone Name": "Z#2"},
+                {"Start Time": "00:19:44", "End Time": "00:21:40", "Zone Name": "Z#3"},
+                {"Start Time": "00:21:41", "End Time": "00:23:07", "Zone Name": "Z#4"},
+                {"Start Time": "00:23:08", "End Time": "00:24:33", "Zone Name": "Z#5"},
+                {"Start Time": "00:24:34", "End Time": "00:25:59", "Zone Name": "Z#6"},
+                {"Start Time": "00:26:00", "End Time": "00:27:37", "Zone Name": "Z#7"},
+                {"Start Time": "00:27:38", "End Time": "00:29:19", "Zone Name": "WatCool#1"},
+                {"Start Time": "00:29:20", "End Time": "00:30:41", "Zone Name": "WatCool#2"},
+                {"Start Time": "00:30:42", "End Time": "00:32:02", "Zone Name": "Exit curtain box"},
+                {"Start Time": "00:32:03", "End Time": "00:32:28", "Zone Name": "XFER#2"},
+                {"Start Time": "00:32:29", "End Time": "00:33:21", "Zone Name": "AirCool#1"},
+                {"Start Time": "00:33:22", "End Time": "00:34:15", "Zone Name": "AirCool#2"},
+                {"Start Time": "00:34:16", "End Time": "00:35:35", "Zone Name": "Exit"}
+            ])
+            angle_setting = -90
+        else: # แสดงสีตามกลุ่มงาน (By Process Group)
+            default_zones_df = pd.DataFrame([
+                {"Start Time": "00:00:00", "End Time": "00:04:58", "Zone Name": "Dryer"},
+                {"Start Time": "00:04:59", "End Time": "00:15:34", "Zone Name": "Debinder"},
+                {"Start Time": "00:15:35", "End Time": "00:27:37", "Zone Name": "Brazing"},
+                {"Start Time": "00:27:38", "End Time": "00:34:15", "Zone Name": "Cool"},
+                {"Start Time": "00:34:16", "End Time": "00:35:35", "Zone Name": "Exit"}
+            ])
+            angle_setting = 0  # แนวนอนเมื่อแสดงเป็นชื่อกลุ่มงานหลัก
 
         edited_zones = st.sidebar.data_editor(
             default_zones_df,
@@ -385,8 +390,9 @@ if uploaded_files:
             column_config={
                 "Start Time": st.column_config.TextColumn("เริ่ม", default="00:00:00"),
                 "End Time": st.column_config.TextColumn("สิ้นสุด", default="00:05:00"),
-                "Zone Name": st.column_config.TextColumn("ชื่อโซน", default="Zone Name")
-            }
+                "Zone Name": st.column_config.TextColumn("ชื่อโซน/กลุ่มงาน", default="Name")
+            },
+            key=f"editor_{color_shading_mode}"
         )
 
         # 📋 แสดงผล Header Metadata
@@ -422,7 +428,7 @@ if uploaded_files:
             "#00FFFF"   # Probe #8 - Cyan
         ]
 
-        # พาเลทสีสำหรับสลับระบายพื้นหลังโซน
+        # พาเลทสีสว่างสำหรับสลับระบายพื้นหลัง
         zone_palette = [
             "#FF9F43", "#00CEC9", "#10AC84", "#9B59B6", "#FF6B6B", 
             "#FECA57", "#48DBFB", "#FF9FF3", "#54A0FF", "#5F27CD",
@@ -450,7 +456,7 @@ if uploaded_files:
                 )
             )
 
-        # 2. วาดพื้นหลังโซนเวลาสลับสีแบบโปร่งใส + วางชื่อโซน
+        # 2. วาดพื้นหลังโซนเวลา/กลุ่มงานสลับสีแบบโปร่งใส + วางชื่อโซน
         if edited_zones is not None and not edited_zones.empty:
             for idx, z_row in edited_zones.iterrows():
                 start_t = str(z_row.get("Start Time", "")).strip()
@@ -458,32 +464,32 @@ if uploaded_files:
                 z_name = str(z_row.get("Zone Name", "")).strip()
                 
                 if start_t and end_t and z_name:
-                    # หาค่าจุด X ในฝั่งเวลารายการเพื่อ mapping
                     color_hex = zone_palette[idx % len(zone_palette)]
-                    fill_rgba = hex_to_rgba(color_hex, 0.25)
+                    fill_opacity = 0.22 if color_shading_mode == "แสดงสีตามกลุ่มงาน (By Process Group)" else 0.20
+                    fill_rgba = hex_to_rgba(color_hex, fill_opacity)
                     line_rgba = hex_to_rgba(color_hex, 0.60)
                     
-                    # เพิ่ม Shape แถบสีโซนลงบนกราฟ
                     fig.add_vrect(
                         x0=start_t,
                         x1=end_t,
                         fillcolor=fill_rgba,
                         layer="below",
-                        line_width=1,
+                        line_width=1.5,
                         line_dash="dot",
                         line_color=line_rgba
                     )
                     
-                    # วางป้ายชื่อโซนด้านบนสุด
+                    font_sz = 11 if color_shading_mode == "แสดงสีตามกลุ่มงาน (By Process Group)" else 9
+                    
                     fig.add_annotation(
                         x=start_t,
-                        y=620,  # ด้านบนสุดของสเกล Y
+                        y=620,
                         text=f"<b>{z_name}</b>",
                         showarrow=False,
                         xanchor="left",
                         yanchor="bottom",
-                        font=dict(color="#FFFFFF", size=9, family="Arial Bold"),
-                        textangle=-90  # เอียงชื่อโซนขึ้นเพื่อป้องกันการเบียดกัน
+                        font=dict(color="#FFFFFF", size=font_sz, family="Arial Bold"),
+                        textangle=angle_setting
                     )
 
         fig.update_layout(
@@ -517,7 +523,7 @@ if uploaded_files:
                 gridcolor="rgba(255,255,255,0.08)",
                 zeroline=False,
                 linecolor="#555555",
-                range=[0, 650]  # Scale 0 - 650 °C
+                range=[0, 650]
             ),
             height=600,
             margin=dict(l=60, r=240, t=50, b=40)
