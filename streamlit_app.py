@@ -174,7 +174,7 @@ def format_seconds_to_time(total_seconds):
     seconds = int(total_seconds % 60)
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
-# 5. ฟังก์ชันอ่านไฟล์ CSV และดึงข้อมูลพร้อม Raw Metadata Keys
+# 5. ฟังก์ชันอ่านไฟล์ CSV และดึงข้อมูลพร้อมดึงค่า #title จาก Header อย่างแม่นยำ
 def parse_single_file(uploaded_file):
     uploaded_file.seek(0)
     raw_bytes = uploaded_file.read()
@@ -210,33 +210,37 @@ def parse_single_file(uploaded_file):
         if not line_str:
             continue
         
+        # อ่านค่า Metadata ใน Header
         if line_str.startswith("#"):
-            if "paqfile start date" in line_str:
-                metadata["paqfile start date"] = line_str.split("=")[-1].strip().rstrip(",")
-            elif "paqfile start time" in line_str:
-                metadata["paqfile start time"] = line_str.split("=")[-1].strip().rstrip(",")
-            elif "title" in line_str and not line_str.startswith("#1"):
-                metadata["title"] = line_str.split("=")[-1].strip().rstrip(",")
-            elif "operator" in line_str:
-                metadata["operator"] = line_str.split("=")[-1].strip().rstrip(",")
-            elif "product" in line_str:
-                metadata["product"] = line_str.split("=")[-1].strip().rstrip(",")
-            elif "interval" in line_str:
-                val = line_str.split("=")[-1].strip().rstrip(",")
-                parts = val.split(":")
-                if len(parts) == 3:
-                    interval_sec = int(parts[0])*3600 + int(parts[1])*60 + int(parts[2])
-            elif "start time" in line_str and "paqfile" not in line_str:
-                val = line_str.split("=")[-1].strip().rstrip(",")
-                parts = val.split(":")
-                if len(parts) == 3:
-                    start_sec = int(parts[0])*3600 + int(parts[1])*60 + int(parts[2])
-            else:
-                m = re.match(r"^#(\d+)\s*=\s*(.*),?", line_str)
-                if m:
-                    ch_num = int(m.group(1))
-                    ch_label = m.group(2).strip().rstrip(",")
-                    probe_labels[ch_num] = ch_label
+            line_clean = line_str.lstrip("#").strip()
+            
+            if "=" in line_clean:
+                key, val = [p.strip() for p in line_clean.split("=", 1)]
+                val = val.rstrip(",")
+                
+                # ตรวจจับเฉพาะ key "#title" แบบตรงตัว
+                if key.lower() == "title":
+                    metadata["title"] = val
+                elif key.lower() == "paqfile start date":
+                    metadata["paqfile start date"] = val
+                elif key.lower() == "paqfile start time":
+                    metadata["paqfile start time"] = val
+                elif key.lower() == "operator":
+                    metadata["operator"] = val
+                elif key.lower() == "product":
+                    metadata["product"] = val
+                elif key.lower() == "interval":
+                    parts = val.split(":")
+                    if len(parts) == 3:
+                        interval_sec = int(parts[0])*3600 + int(parts[1])*60 + int(parts[2])
+                elif key.lower() == "start time":
+                    parts = val.split(":")
+                    if len(parts) == 3:
+                        start_sec = int(parts[0])*3600 + int(parts[1])*60 + int(parts[2])
+                elif key.isdigit():
+                    ch_num = int(key)
+                    probe_labels[ch_num] = val
+
         else:
             parts = [p.strip() for p in line_str.split(",") if p.strip() != ""]
             if len(parts) >= 8:
@@ -328,7 +332,7 @@ if uploaded_files:
             index=0
         )
 
-        # 📋 แสดงผล Header Metadata ตรงตามสไตล์ #key = value
+        # 📋 แสดงผล Header Metadata ตรงตามสไตล์ #key = value จากรูปภาพ
         col_h1, col_h2 = st.columns(2)
         with col_h1:
             st.markdown(f"""
