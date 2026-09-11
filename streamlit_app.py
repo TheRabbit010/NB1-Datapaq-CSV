@@ -4,6 +4,8 @@ from plotly.subplots import make_subplots
 import streamlit as st
 import io
 import re
+import openpyxl
+from openpyxl.drawing.image import Image
 
 # 1. ตั้งค่า Page Config
 st.set_page_config(
@@ -297,12 +299,36 @@ def process_multiple_files(uploaded_files):
     full_df = full_df.sort_values("ElapsedSeconds").reset_index(drop=True)
     return full_df, first_metadata
 
-# ฟังก์ชันแปลง DataFrame เป็น Binary สำหรับดาวน์โหลด Excel (.xlsx)
-def to_excel_bytes(dataframe):
+# ฟังก์ชันแปลง DataFrame + Summary Table + แนบรูปกราฟลงในไฟล์ Excel (.xlsx)
+def to_excel_bytes(dataframe, summary_dataframe=None, fig_plotly=None):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        # Sheet 1: ตารางสรุปพารามิเตอร์ (นำไปใช้ใน Google Sheets / Excel)
+        if summary_dataframe is not None and not summary_dataframe.empty:
+            summary_dataframe.to_excel(writer, index=False, sheet_name='Parameter Summary')
+            
+        # Sheet 2: ข้อมูล Log ทั้งหมด
         df_export = dataframe.copy()
-        df_export.to_excel(writer, index=False, sheet_name='Datapaq Data')
+        df_export.to_excel(writer, index=False, sheet_name='Raw Log Data')
+
+    # แนบภาพกราฟลงในไฟล์ Excel (ถ้าสามารถ render รูปภาพได้)
+    if fig_plotly is not None:
+        try:
+            img_bytes = fig_plotly.to_image(format="png", width=1200, height=550)
+            img_buf = io.BytesIO(img_bytes)
+            
+            wb = openpyxl.load_workbook(output)
+            ws = wb['Parameter Summary'] if 'Parameter Summary' in wb.sheetnames else wb.active
+            
+            img = openpyxl.drawing.image.Image(img_buf)
+            img.anchor = 'A12'  # แทรกรูปกราฟไว้ใต้ตารางสรุป
+            ws.add_image(img)
+            
+            output = io.BytesIO()
+            wb.save(output)
+        except Exception:
+            pass
+
     output.seek(0)
     return output.getvalue()
 
@@ -563,28 +589,44 @@ if uploaded_files:
             secs = int(seconds % 60)
             return f"{hours}:{mins:02d}:{secs:02d}"
 
+        # จัดลำดับ Probe ตามลำดับตารางมาตรฐานในภาพ (PB#1, PB#2, PB#3, PB#8 = Bottom / PB#4, PB#5, PB#6, PB#7 = Top)
+        probe_order = [1, 2, 3, 8, 4, 5, 6, 7]
+        ordered_cols = []
+        for p_num in probe_order:
+            for c in probe_cols[:8]:
+                if f"Probe #{p_num}" in c:
+                    ordered_cols.append((p_num, c))
+                    break
+
         summary_rows = []
-        for col_name in probe_cols[:8]:
-            # 1. Dryer Max
+        for p_num, col_name in ordered_cols:
+            location = "Bottom" if p_num in [1, 2, 3, 8] else "Top"
+            short_pb_name = f"PB#{p_num}"
+            
+            # 1. Maximum Temperatures (°C)
             d_max = round(dryer_subset[col_name].max(), 1) if not dryer_subset.empty else 0.0
-            
-            # 2. Debinder Max
             db_max = round(debinder_subset[col_name].max(), 1) if not debinder_subset.empty else 0.0
-            
-            # 3. Brazing Max & Dwell Times
             br_max = round(brazing_subset[col_name].max(), 1) if not brazing_subset.empty else 0.0
-            br_dwell_577 = (brazing_subset[col_name] > 577).sum() if not brazing_subset.empty else 0
-            br_dwell_583 = (brazing_subset[col_name] > 583).sum() if not brazing_subset.empty else 0
+            
+            # 2. Dwell Times (Brazing, Debinder, Dryer)
             br_dwell_600 = (brazing_subset[col_name] > 600).sum() if not brazing_subset.empty else 0
+            br_dwell_583 = (brazing_subset[col_name] > 583).sum() if not brazing_subset.empty else 0
+            br_dwell_577 = (brazing_subset[col_name] > 577).sum() if not brazing_subset.empty else 0
+            
+            db_dwell_200 = (debinder_subset[col_name] > 200).sum() if not debinder_subset.empty else 0
+            d_dwell_175 = (dryer_subset[col_name] > 175).sum() if not dryer_subset.empty else 0
 
             summary_rows.append({
-                "Probe Name": col_name,
+                "Location": location,
+                "Probe": short_pb_name,
                 "Brazing Max (°C)": br_max,
                 "Debinder Max (°C)": db_max,
                 "Dryer Max (°C)": d_max,
                 "at 600°C / probe": format_excel_time(br_dwell_600),
                 "at 583°C / probe": format_excel_time(br_dwell_583),
-                "at 577°C / probe": format_excel_time(br_dwell_577)
+                "at 577°C / probe": format_excel_time(br_dwell_577),
+                "at 200°C / probe": format_excel_time(db_dwell_200),
+                "at 175°C / probe": format_excel_time(d_dwell_175)
             })
 
         summary_df = pd.DataFrame(summary_rows)
@@ -595,12 +637,10 @@ if uploaded_files:
         st.markdown("""
             <div style="background-color: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 12px 18px; font-size: 13px; color: #CCCCCC; margin-top: 10px;">
                 <b style="color: #F0B90B;">📌 เกณฑ์มาตรฐานอ้างอิง (Process Standards):</b><br>
-                • <b>Dryer:</b> Max Temp <b>175 - 260 °C</b> | Dwell Time >175°C <b>> 1:00 min (>60s)</b><br>
-                • <b>Debinder:</b> Max Temp <b>200 - 375 °C</b> | Dwell Time >175°C <b>> 2:00 min (>120s)</b><br>
-                • <b>Brazing Max Temp:</b> Corner Probes <b>596 - 610 °C</b> | Center Probes (#2, #5) <b>583 - 607 °C</b><br>
-                • <b>Brazing Dwell Time >577°C:</b> <b>2:30 - 6:00 min (150s - 360s)</b><br>
-                • <b>Brazing Dwell Time >583°C:</b> <b>2:30 - 6:00 min (150s - 360s)</b><br>
-                • <b>Brazing Dwell Time >600°C:</b> <b>< 4:00 min (<240s)</b>
+                • <b>Maximum Temperatures (°C):</b> Brazing (Corner Probes: <b>596 - 610 °C</b> | Center Probes #2, #5: <b>583 - 607 °C</b>) | Debinder: <b>200 - 375 °C</b> | Dryer: <b>175 - 260 °C</b><br>
+                • <b>Brazing Dwell Time:</b> at 600°C: <b>< 4:00 min (<240s)</b> | at 583°C & 577°C: <b>2:30 - 6:00 min (150s - 360s)</b><br>
+                • <b>Debinder Dwell Time:</b> at 200°C: <b>> 2:00 min (>120s)</b><br>
+                • <b>Dryer Dwell Time:</b> at 175°C: <b>> 1:00 min (>60s)</b>
             </div>
         """, unsafe_allow_html=True)
 
@@ -622,9 +662,9 @@ if uploaded_files:
                     
             with col_opt2:
                 st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
-                excel_bytes = to_excel_bytes(df)
+                excel_bytes = to_excel_bytes(df, summary_dataframe=summary_df, fig_plotly=fig)
                 st.download_button(
-                    label="📊 ดาวน์โหลดไฟล์ Excel",
+                    label="📊 ดาวน์โหลดไฟล์ Excel (พร้อมตารางและแนบรูปกราฟ)",
                     data=excel_bytes,
                     file_name=custom_filename,
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
