@@ -381,7 +381,6 @@ if uploaded_files:
             index=0
         )
 
-        # ปรับแก้เวลา Start Time & End Time ให้เป็นรูปแบบ 00:MM:SS ตรงกับข้อมูลจริง
         if color_shading_mode == "แสดงสีตามโซน (By Zone)":
             zones_data = [
                 {"Start Time": "00:00:00", "End Time": "00:02:14", "Zone Name": "Dryer Z#1", "Color": "#FF9F43"},
@@ -570,7 +569,10 @@ if uploaded_files:
 
         dryer_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 270)]      # Dryer: 00:00:00 - 00:04:30
         debinder_subset = df[(df["ElapsedSeconds"] >= 330) & (df["ElapsedSeconds"] <= 840)]   # Debinder: 00:05:30 - 00:14:00
-        brazing_subset = df[(df["ElapsedSeconds"] >= 935) & (df["ElapsedSeconds"] <= 1759)]   # Brazing: 00:15:35 - 00:29:19
+        brazing_subset = df[(df["ElapsedSeconds"] >= 935) & (df["ElapsedSeconds"] <= 1759)]   # Brazing Max Temp: 00:15:35 - 00:29:19
+        
+        # 📌 ช่วงเวลาคำนวณ Dwell Time ตามเงื่อนไข (00:21:41 to 00:29:19 -> วินาทีที่ 1301 ถึง 1759)
+        brazing_ht_subset = df[(df["ElapsedSeconds"] >= 1301) & (df["ElapsedSeconds"] <= 1759)]
 
         probe_order = [1, 2, 3, 8, 4, 5, 6, 7]
         ordered_cols = []
@@ -590,10 +592,10 @@ if uploaded_files:
             db_max = f"{debinder_subset[col_name].max():.1f}" if not debinder_subset.empty else "0.0"
             d_max = f"{dryer_subset[col_name].max():.1f}" if not dryer_subset.empty else "0.0"
             
-            # 2. Dwell Times -> แสดงในรูปแบบ HH:MM:SS
-            br_dwell_600 = (brazing_subset[col_name] > 600).sum() if not brazing_subset.empty else 0
-            br_dwell_583 = (brazing_subset[col_name] > 583).sum() if not brazing_subset.empty else 0
-            br_dwell_577 = (brazing_subset[col_name] > 577).sum() if not brazing_subset.empty else 0
+            # 2. Dwell Times -> คำนวณช่วงเวลา 00:21:41 ถึง 00:29:19 สำหรับ 600°C, 583°C และ 577°C
+            br_dwell_600 = (brazing_ht_subset[col_name] > 600).sum() if not brazing_ht_subset.empty else 0
+            br_dwell_583 = (brazing_ht_subset[col_name] > 583).sum() if not brazing_ht_subset.empty else 0
+            br_dwell_577 = (brazing_ht_subset[col_name] > 577).sum() if not brazing_ht_subset.empty else 0
             
             db_dwell_200 = (debinder_subset[col_name] > 200).sum() if not debinder_subset.empty else 0
             d_dwell_175 = (dryer_subset[col_name] > 175).sum() if not dryer_subset.empty else 0
@@ -633,7 +635,7 @@ if uploaded_files:
             <div style="background-color: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 12px 18px; font-size: 13px; color: #CCCCCC; margin-top: 10px;">
                 <b style="color: #F0B90B;">📌 เกณฑ์มาตรฐานอ้างอิง (Process Standards):</b><br>
                 • <b>Maximum Temperatures (°C):</b> Brazing (Corner Probes: <b>596 - 610 °C</b> | Center Probes #2, #5: <b>583 - 607 °C</b>) | Debinder: <b>200 - 375 °C</b> | Dryer: <b>175 - 260 °C</b><br>
-                • <b>Brazing Dwell Time:</b> Dwell Time Above 600°C: <b>< 4:00 min (<240s)</b> | Dwell Time Above 583°C & 577°C: <b>2:30 - 6:00 min (150s - 360s)</b><br>
+                • <b>Brazing Dwell Time (คิดช่วงเวลา 00:21:41 to 00:29:19):</b> Dwell Time Above 600°C: <b>< 4:00 min (<240s)</b> | Dwell Time Above 583°C & 577°C: <b>2:30 - 6:00 min (150s - 360s)</b><br>
                 • <b>Debinder Dwell Time:</b> Dwell Time Above 200°C: <b>> 2:00 min (>120s)</b><br>
                 • <b>Dryer Dwell Time:</b> Dwell Time Above 175°C: <b>> 1:00 min (>60s)</b>
             </div>
