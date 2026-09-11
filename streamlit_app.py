@@ -559,9 +559,13 @@ if uploaded_files:
         # ---------------------------------------------------------
         st.markdown("### 📊 ตารางสรุปผลการวิเคราะห์ (Data Table for Google Sheets Copy)")
 
-        dryer_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 298)]
-        debinder_subset = df[(df["ElapsedSeconds"] >= 299) & (df["ElapsedSeconds"] <= 934)]
-        brazing_subset = df[(df["ElapsedSeconds"] >= 935) & (df["ElapsedSeconds"] <= 1657)]
+        # คำนวณช่วงเวลาใหม่ตามที่ระบุ:
+        # Dryer: 00:00:00 - 00:04:30 (0 - 270s)
+        # Debinder: 00:05:30 - 00:14:00 (330 - 840s)
+        # Brazing: 00:15:35 - 00:29:20 (935 - 1760s)
+        dryer_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 270)]
+        debinder_subset = df[(df["ElapsedSeconds"] >= 330) & (df["ElapsedSeconds"] <= 840)]
+        brazing_subset = df[(df["ElapsedSeconds"] >= 935) & (df["ElapsedSeconds"] <= 1760)]
 
         def format_excel_time(seconds):
             hours = int(seconds // 3600)
@@ -569,7 +573,6 @@ if uploaded_files:
             secs = int(seconds % 60)
             return f"{hours}:{mins:02d}:{secs:02d}"
 
-        # จัดลำดับ Probe (PB#1, PB#2, PB#3, PB#8 = Bottom / PB#4, PB#5, PB#6, PB#7 = Top)
         probe_order = [1, 2, 3, 8, 4, 5, 6, 7]
         ordered_cols = []
         for p_num in probe_order:
@@ -609,7 +612,6 @@ if uploaded_files:
                 format_excel_time(d_dwell_175)
             ])
 
-        # กำหนดหัวตาราง 2 ชั้น (MultiIndex Header) เพื่อระบุกลุ่มงานของ Dwell Time
         multi_cols = pd.MultiIndex.from_tuples([
             ("", "Location"),
             ("", "Probe"),
@@ -625,7 +627,7 @@ if uploaded_files:
 
         display_summary_df = pd.DataFrame(summary_rows, columns=multi_cols)
 
-        st.dataframe(display_summary_df, use_container_width=True)
+        st.dataframe(display_summary_df, use_container_width=True, hide_index=True)
 
         # คำอธิบายเกณฑ์มาตรฐาน (Process Standards Legend)
         st.markdown("""
