@@ -5,7 +5,7 @@ import streamlit as st
 import io
 import re
 
-# 1. ตั้งค่า Page Config (Datapaq NB1)
+# 1. ตั้งค่า Page Config
 st.set_page_config(
     page_title="Datapaq NB1",
     page_icon="🏭",
@@ -13,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. บังคับ Dark Mode CSS และปรับสไตล์การ์ดข้อมูล
+# 2. บังคับ Dark Mode CSS
 st.markdown("""
     <style>
         /* ซ่อนแถบขาว Header ด้านบน */
@@ -83,22 +83,25 @@ st.markdown("""
             font-weight: bold !important;
         }
 
-        /* การ์ดแสดงผล Header Metadata */
-        .meta-container {
+        /* สไตล์กล่องแสดง Header Metadata แบบ Raw Header (#key = value) */
+        .raw-header-box {
             background-color: #161b22;
             border: 1px solid #30363d;
-            border-left: 5px solid #F0B90B;
-            border-radius: 8px;
-            padding: 15px 20px;
-            margin-bottom: 20px;
-        }
-        .meta-item {
+            border-left: 4px solid #F0B90B;
+            border-radius: 6px;
+            padding: 12px 18px;
+            font-family: 'Courier New', Courier, monospace;
             font-size: 14px;
-            margin-bottom: 6px;
             color: #e6edf3;
+            margin-bottom: 15px;
+            line-height: 1.6;
         }
-        .meta-label {
-            color: #F0B90B;
+        .raw-header-key {
+            color: #58a6ff;
+            font-weight: bold;
+        }
+        .raw-header-val {
+            color: #D29922;
             font-weight: bold;
         }
 
@@ -171,7 +174,7 @@ def format_seconds_to_time(total_seconds):
     seconds = int(total_seconds % 60)
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
-# 5. ฟังก์ชันอ่านไฟล์ CSV และดึงทั้งข้อมูล + Header Metadata
+# 5. ฟังก์ชันอ่านไฟล์ CSV และดึงข้อมูลพร้อม Raw Metadata Keys
 def parse_single_file(uploaded_file):
     uploaded_file.seek(0)
     raw_bytes = uploaded_file.read()
@@ -194,10 +197,9 @@ def parse_single_file(uploaded_file):
     probe_labels = {}
     data_rows = []
     
-    # ดึงค่า Metadata จาก Header
     metadata = {
-        "start_date": "-",
-        "start_time": "-",
+        "paqfile start date": "-",
+        "paqfile start time": "-",
         "title": "-",
         "operator": "-",
         "product": "-"
@@ -208,12 +210,11 @@ def parse_single_file(uploaded_file):
         if not line_str:
             continue
         
-        # อ่านค่า Metadata ใน Header
         if line_str.startswith("#"):
             if "paqfile start date" in line_str:
-                metadata["start_date"] = line_str.split("=")[-1].strip().rstrip(",")
+                metadata["paqfile start date"] = line_str.split("=")[-1].strip().rstrip(",")
             elif "paqfile start time" in line_str:
-                metadata["start_time"] = line_str.split("=")[-1].strip().rstrip(",")
+                metadata["paqfile start time"] = line_str.split("=")[-1].strip().rstrip(",")
             elif "title" in line_str and not line_str.startswith("#1"):
                 metadata["title"] = line_str.split("=")[-1].strip().rstrip(",")
             elif "operator" in line_str:
@@ -286,7 +287,7 @@ def process_multiple_files(uploaded_files):
     full_df = full_df.sort_values("ElapsedSeconds").reset_index(drop=True)
     return full_df, first_metadata
 
-# ฟังก์ชันแปลง DataFrame เป็น Binary สำหรับดาวน์โหลดเป็นไฟล์ Excel (.xlsx)
+# ฟังก์ชันแปลง DataFrame เป็น Binary สำหรับดาวน์โหลด Excel (.xlsx)
 def to_excel_bytes(dataframe):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -308,7 +309,7 @@ uploaded_files = st.sidebar.file_uploader(
     accept_multiple_files=True
 )
 
-# 7. แสดงผลการ์ด Metadata + กราฟ + ปุ่มดาวน์โหลด Excel
+# 7. แสดงผล Header Metadata รูปแบบ #key = value + กราฟ
 if uploaded_files:
     df, metadata = process_multiple_files(uploaded_files)
     
@@ -327,28 +328,28 @@ if uploaded_files:
             index=0
         )
 
-        # 📋 แสดงผลข้อความแทนที่ภาพบน (#paqfile start date, #paqfile start time, #title, #operator, #product)
-        col_m1, col_m2 = st.columns(2)
-        with col_m1:
+        # 📋 แสดงผล Header Metadata ตรงตามสไตล์ #key = value
+        col_h1, col_h2 = st.columns(2)
+        with col_h1:
             st.markdown(f"""
-                <div class="meta-container">
-                    <div class="meta-item"><span class="meta-label">📅 Start Date:</span> {metadata.get('start_date', '-')}</div>
-                    <div class="meta-item"><span class="meta-label">⏰ Start Time:</span> {metadata.get('start_time', '-')}</div>
-                    <div class="meta-item"><span class="meta-label">🏷️ Title:</span> {metadata.get('title', '-')}</div>
+                <div class="raw-header-box">
+                    <div><span class="raw-header-key">#paqfile start date</span> = <span class="raw-header-val">{metadata.get('paqfile start date', '-')}</span></div>
+                    <div><span class="raw-header-key">#paqfile start time</span> = <span class="raw-header-val">{metadata.get('paqfile start time', '-')}</span></div>
+                    <div><span class="raw-header-key">#title</span> = <span class="raw-header-val">{metadata.get('title', '-')}</span></div>
                 </div>
             """, unsafe_allow_html=True)
-        with col_m2:
+        with col_h2:
             st.markdown(f"""
-                <div class="meta-container">
-                    <div class="meta-item"><span class="meta-label">👤 Operator:</span> {metadata.get('operator', '-')}</div>
-                    <div class="meta-item"><span class="meta-label">📦 Product:</span> {metadata.get('product', '-')}</div>
+                <div class="raw-header-box">
+                    <div><span class="raw-header-key">#operator</span> = <span class="raw-header-val">{metadata.get('operator', '-')}</span></div>
+                    <div><span class="raw-header-key">#product</span> = <span class="raw-header-val">{metadata.get('product', '-')}</span></div>
                 </div>
             """, unsafe_allow_html=True)
 
         # สร้างกราฟ Plotly
         fig = make_subplots(specs=[[{"secondary_y": False}]])
         
-        # สี Probes ตรงตามตาราง Datapaq (#1 ถึง #8)
+        # สี Probes ตามตาราง Datapaq (#1 ถึง #8)
         probe_colors = [
             "#FF0000",  # Probe #1 - Red
             "#00FF00",  # Probe #2 - Green
