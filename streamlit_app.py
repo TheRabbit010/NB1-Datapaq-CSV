@@ -14,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. บังคับ Dark Mode CSS + จัดการตารางให้อยู่ตรงกลางอย่างสมบูรณ์ (Center Align All Cells)
+# 2. บังคับ Dark Mode CSS + จัดการตารางให้อยู่ตรงกลางอย่างสมบูรณ์แบบไม่ติด Error
 st.markdown("""
     <style>
         /* ซ่อนแถบขาว Header ด้านบน */
@@ -121,7 +121,7 @@ st.markdown("""
             color: #ffffff !important;
         }
 
-        /* ปรับแต่งตาราง Dataframe & บังคับจัดข้อความ/ตัวเลขอยู่กึ่งกลางทุกช่อง */
+        /* ปรับแต่งตาราง Dataframe & บังคับจัดข้อความ/ตัวเลขทุกช่องให้อยู่ตรงกลางทั้งหมด */
         [data-testid="stDataFrame"], [data-testid="stTable"] {
             background-color: #161b22 !important;
             border: 1px solid #30363d !important;
@@ -137,10 +137,9 @@ st.markdown("""
             justify-content: center !important;
             text-align: center !important;
         }
-        div[data-testid="stDataFrame"] div[role="columnheader"] > div {
+        div[data-testid="stDataFrame"] div[role="columnheader"] * {
             justify-content: center !important;
             text-align: center !important;
-            width: 100% !important;
         }
         div[data-testid="stDataFrame"] div[role="gridcell"] {
             justify-content: center !important;
@@ -148,9 +147,14 @@ st.markdown("""
             display: flex !important;
             align-items: center !important;
         }
-        div[data-testid="stDataFrame"] div[role="gridcell"] > div {
+        div[data-testid="stDataFrame"] div[role="gridcell"] * {
             text-align: center !important;
-            width: 100% !important;
+        }
+        
+        /* ปรับสไตล์สำหรับ st.table ให้จัดกลางด้วย */
+        [data-testid="stTable"] th, [data-testid="stTable"] td {
+            text-align: center !important;
+            vertical-align: middle !important;
         }
 
         /* ปรับแต่งปุ่มดาวน์โหลด Excel */
@@ -572,7 +576,7 @@ if uploaded_files:
         st.plotly_chart(fig, use_container_width=True)
 
         # ---------------------------------------------------------
-        # 📊 ตารางสรุปค่า (ปรับโครงสร้างหัวตารางตามข้อสั่งการ)
+        # 📊 ตารางสรุปค่า (เฉพาะตัวเลขสำหรับ Copy ไปวางใน Google Sheets)
         # ---------------------------------------------------------
         st.markdown("### 📊 ตารางสรุปผลการวิเคราะห์ (Data Table for Google Sheets Copy)")
 
@@ -619,7 +623,6 @@ if uploaded_files:
                 format_seconds_to_time(d_dwell_175)
             ])
 
-        # ปรับโครงสร้างชื่อกลุ่มงาน และย้าย Dwell Time มารวมกับ Above
         multi_cols = pd.MultiIndex.from_tuples([
             ("", "Location"),
             ("", "Probe"),
@@ -635,18 +638,8 @@ if uploaded_files:
 
         display_summary_df = pd.DataFrame(summary_rows, columns=multi_cols)
 
-        # ใช้ column_config เพื่อช่วยบังคับการแสดงผลให้อยู่ตรงกลางทุกคอลัมน์
-        column_config = {
-            col: st.column_config.Column(alignment="center") 
-            for col in display_summary_df.columns
-        }
-
-        st.dataframe(
-            display_summary_df, 
-            use_container_width=True, 
-            hide_index=True,
-            column_config=column_config
-        )
+        # แสดงผลตารางโดยไม่ใส่ column_config เพื่อป้องกัน Error กับ MultiIndex DataFrame
+        st.dataframe(display_summary_df, use_container_width=True, hide_index=True)
 
         # คำอธิบายเกณฑ์มาตรฐาน (Process Standards Legend)
         st.markdown("""
