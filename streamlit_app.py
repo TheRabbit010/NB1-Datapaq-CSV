@@ -13,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. บังคับ Dark Mode CSS และตั้งค่าตัวหนังสือปุ่มดาวน์โหลดเป็นสีขาว
+# 2. บังคับ Dark Mode CSS และปรับสไตล์การ์ดข้อมูล
 st.markdown("""
     <style>
         /* ซ่อนแถบขาว Header ด้านบน */
@@ -83,6 +83,25 @@ st.markdown("""
             font-weight: bold !important;
         }
 
+        /* การ์ดแสดงผล Header Metadata */
+        .meta-container {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-left: 5px solid #F0B90B;
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+        }
+        .meta-item {
+            font-size: 14px;
+            margin-bottom: 6px;
+            color: #e6edf3;
+        }
+        .meta-label {
+            color: #F0B90B;
+            font-weight: bold;
+        }
+
         /* ปรับแถบ Expander */
         [data-testid="stExpander"] {
             background-color: #161b22 !important;
@@ -109,18 +128,6 @@ st.markdown("""
             color: #ffffff !important;
         }
         div[data-testid="stDataFrame"] div[role="columnheader"] {
-            background-color: #21262d !important;
-            color: #ffffff !important;
-        }
-
-        /* ปรับแต่งกล่องพิมพ์ข้อความ (Text Input) */
-        div[data-baseweb="input"] {
-            background-color: #21262d !important;
-            border: 1px solid #30363d !important;
-            color: #ffffff !important;
-            border-radius: 6px !important;
-        }
-        div[data-baseweb="input"] input {
             background-color: #21262d !important;
             color: #ffffff !important;
         }
@@ -164,7 +171,7 @@ def format_seconds_to_time(total_seconds):
     seconds = int(total_seconds % 60)
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
-# 5. ฟังก์ชันอ่านและ Parse ไฟล์ CSV
+# 5. ฟังก์ชันอ่านไฟล์ CSV และดึงทั้งข้อมูล + Header Metadata
 def parse_single_file(uploaded_file):
     uploaded_file.seek(0)
     raw_bytes = uploaded_file.read()
@@ -186,6 +193,15 @@ def parse_single_file(uploaded_file):
     start_sec = 0
     probe_labels = {}
     data_rows = []
+    
+    # ดึงค่า Metadata จาก Header
+    metadata = {
+        "start_date": "-",
+        "start_time": "-",
+        "title": "-",
+        "operator": "-",
+        "product": "-"
+    }
 
     for line in lines:
         line_str = line.strip()
@@ -194,7 +210,17 @@ def parse_single_file(uploaded_file):
         
         # อ่านค่า Metadata ใน Header
         if line_str.startswith("#"):
-            if "interval" in line_str:
+            if "paqfile start date" in line_str:
+                metadata["start_date"] = line_str.split("=")[-1].strip().rstrip(",")
+            elif "paqfile start time" in line_str:
+                metadata["start_time"] = line_str.split("=")[-1].strip().rstrip(",")
+            elif "title" in line_str and not line_str.startswith("#1"):
+                metadata["title"] = line_str.split("=")[-1].strip().rstrip(",")
+            elif "operator" in line_str:
+                metadata["operator"] = line_str.split("=")[-1].strip().rstrip(",")
+            elif "product" in line_str:
+                metadata["product"] = line_str.split("=")[-1].strip().rstrip(",")
+            elif "interval" in line_str:
                 val = line_str.split("=")[-1].strip().rstrip(",")
                 parts = val.split(":")
                 if len(parts) == 3:
@@ -220,7 +246,7 @@ def parse_single_file(uploaded_file):
                     continue
 
     if not data_rows:
-        return pd.DataFrame()
+        return pd.DataFrame(), metadata
 
     parsed_data = []
     for idx, row_vals in enumerate(data_rows):
@@ -240,21 +266,25 @@ def parse_single_file(uploaded_file):
             
         parsed_data.append(row_dict)
 
-    return pd.DataFrame(parsed_data)
+    return pd.DataFrame(parsed_data), metadata
 
 def process_multiple_files(uploaded_files):
     combined_dfs = []
+    first_metadata = None
+    
     for file in uploaded_files:
-        df_single = parse_single_file(file)
+        df_single, meta_single = parse_single_file(file)
         if not df_single.empty:
             combined_dfs.append(df_single)
+            if first_metadata is None:
+                first_metadata = meta_single
             
     if not combined_dfs:
-        return pd.DataFrame()
+        return pd.DataFrame(), {}
 
     full_df = pd.concat(combined_dfs, ignore_index=True)
     full_df = full_df.sort_values("ElapsedSeconds").reset_index(drop=True)
-    return full_df
+    return full_df, first_metadata
 
 # ฟังก์ชันแปลง DataFrame เป็น Binary สำหรับดาวน์โหลดเป็นไฟล์ Excel (.xlsx)
 def to_excel_bytes(dataframe):
@@ -278,12 +308,12 @@ uploaded_files = st.sidebar.file_uploader(
     accept_multiple_files=True
 )
 
-# 7. แสดงผลกราฟและปุ่มเลือกดาวน์โหลด Excel
+# 7. แสดงผลการ์ด Metadata + กราฟ + ปุ่มดาวน์โหลด Excel
 if uploaded_files:
-    df = process_multiple_files(uploaded_files)
+    df, metadata = process_multiple_files(uploaded_files)
     
     if df.empty:
-        st.error("⚠️ ไม่สามารถอ่านข้อมูลจากไฟล์ที่อัปโหลดได้ กรุณาตรวจสอบว่าเป็นไฟล์ CSV จาก Recorder/Datapaq หรือไม่")
+        st.error("⚠️ ไม่สามารถอ่านข้อมูลจากไฟล์ที่อัปโหลดได้ กรุณาตรวจสอบว่าเป็นไฟล์ CSV จาก Datapaq หรือไม่")
     else:
         st.sidebar.success(f"รวมข้อมูลสำเร็จ {len(uploaded_files)} ไฟล์ ({len(df)} แถว)")
 
@@ -297,21 +327,37 @@ if uploaded_files:
             index=0
         )
 
-        st.subheader("📊 Debinder 8-Probe Temperature Monitor")
+        # 📋 แสดงผลข้อความแทนที่ภาพบน (#paqfile start date, #paqfile start time, #title, #operator, #product)
+        col_m1, col_m2 = st.columns(2)
+        with col_m1:
+            st.markdown(f"""
+                <div class="meta-container">
+                    <div class="meta-item"><span class="meta-label">📅 Start Date:</span> {metadata.get('start_date', '-')}</div>
+                    <div class="meta-item"><span class="meta-label">⏰ Start Time:</span> {metadata.get('start_time', '-')}</div>
+                    <div class="meta-item"><span class="meta-label">🏷️ Title:</span> {metadata.get('title', '-')}</div>
+                </div>
+            """, unsafe_allow_html=True)
+        with col_m2:
+            st.markdown(f"""
+                <div class="meta-container">
+                    <div class="meta-item"><span class="meta-label">👤 Operator:</span> {metadata.get('operator', '-')}</div>
+                    <div class="meta-item"><span class="meta-label">📦 Product:</span> {metadata.get('product', '-')}</div>
+                </div>
+            """, unsafe_allow_html=True)
 
         # สร้างกราฟ Plotly
         fig = make_subplots(specs=[[{"secondary_y": False}]])
         
-        # 🎨 สี Probes ตรงตามภาพตาราง Datapaq (#1 ถึง #8)
+        # สี Probes ตรงตามตาราง Datapaq (#1 ถึง #8)
         probe_colors = [
-            "#FF0000",  # Probe #1 - Red (แดง)
-            "#00FF00",  # Probe #2 - Green (เขียว)
-            "#0000FF",  # Probe #3 - Blue (น้ำเงิน)
-            "#8B4513",  # Probe #4 - Brown (น้ำตาล)
-            "#FF00FF",  # Probe #5 - Pink / Magenta (ชมพู)
-            "#DAA520",  # Probe #6 - Golden Yellow (เหลืองทอง)
-            "#800080",  # Probe #7 - Purple (ม่วง)
-            "#00FFFF"   # Probe #8 - Cyan / Light Blue (ฟ้า)
+            "#FF0000",  # Probe #1 - Red
+            "#00FF00",  # Probe #2 - Green
+            "#0000FF",  # Probe #3 - Blue
+            "#8B4513",  # Probe #4 - Brown
+            "#FF00FF",  # Probe #5 - Pink / Magenta
+            "#DAA520",  # Probe #6 - Golden Yellow
+            "#800080",  # Probe #7 - Purple
+            "#00FFFF"   # Probe #8 - Cyan
         ]
 
         # กำหนด Column แกน X
@@ -322,7 +368,7 @@ if uploaded_files:
             x_data = df["Distance"]
             x_title = "Distance"
 
-        # Plot ข้อมูล Probe ทั้ง 8 พร้อมจับคู่สีตามตำแหน่ง
+        # Plot ข้อมูล Probe ทั้ง 8
         probe_cols = [c for c in df.columns if c.startswith("Probe #")]
         for idx, col in enumerate(probe_cols[:8]):
             fig.add_trace(
@@ -369,7 +415,7 @@ if uploaded_files:
                 range=[0, 650]  # Scale 0 - 650 °C
             ),
             height=550,
-            margin=dict(l=60, r=220, t=30, b=40)
+            margin=dict(l=60, r=220, t=10, b=40)
         )
 
         st.plotly_chart(fig, use_container_width=True)
