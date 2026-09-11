@@ -14,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. บังคับ Dark Mode CSS + จัดการตารางให้อยู่ตรงกลางอย่างสมบูรณ์แบบไม่ติด Error
+# 2. บังคับ Dark Mode CSS + จัดการตารางให้อยู่ตรงกลางอย่างสมบูรณ์
 st.markdown("""
     <style>
         /* ซ่อนแถบขาว Header ด้านบน */
@@ -151,7 +151,6 @@ st.markdown("""
             text-align: center !important;
         }
         
-        /* ปรับสไตล์สำหรับ st.table ให้จัดกลางด้วย */
         [data-testid="stTable"] th, [data-testid="stTable"] td {
             text-align: center !important;
             vertical-align: middle !important;
@@ -189,12 +188,12 @@ st.markdown("""
 # 3. แสดงชื่อโปรแกรมหลัก
 st.title("🏭 Datapaq NB1")
 
-# 4. ฟังก์ชันแปลงวินาทีเป็นรูปแบบ HH:MM:SS (ไม่มีทศนิยม)
+# 4. ฟังก์ชันแปลงวินาทีเป็นรูปแบบ 00:MM:SS
 def format_seconds_to_time(total_seconds):
     hours = int(total_seconds // 3600)
     minutes = int((total_seconds % 3600) // 60)
     seconds = int(total_seconds % 60)
-    return f"{hours}:{minutes:02d}:{seconds:02d}"
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
 # ฟังก์ชันแปลง Hex Color เป็น RGBA
 def hex_to_rgba(hex_str, opacity=0.25):
@@ -382,38 +381,39 @@ if uploaded_files:
             index=0
         )
 
+        # ปรับแก้เวลา Start Time & End Time ให้เป็นรูปแบบ 00:MM:SS ตรงกับข้อมูลจริง
         if color_shading_mode == "แสดงสีตามโซน (By Zone)":
             zones_data = [
-                {"Start Time": "00:00:00", "End Time": "00:02:14", "Zone Name": "Dryer Z#1"},
-                {"Start Time": "00:02:15", "End Time": "00:04:28", "Zone Name": "Dryer Z#2"},
-                {"Start Time": "00:04:29", "End Time": "00:04:58", "Zone Name": "EXT Dryer"},
-                {"Start Time": "00:04:59", "End Time": "00:05:26", "Zone Name": "ENT DB"},
-                {"Start Time": "00:05:27", "End Time": "00:07:41", "Zone Name": "DB Z#1"},
-                {"Start Time": "00:07:42", "End Time": "00:09:32", "Zone Name": "DB Z#2"},
-                {"Start Time": "00:09:33", "End Time": "00:11:23", "Zone Name": "DB Z#3"},
-                {"Start Time": "00:11:24", "End Time": "00:13:38", "Zone Name": "DB Z#4"},
-                {"Start Time": "00:13:39", "End Time": "00:15:34", "Zone Name": "XFER#1"},
-                {"Start Time": "00:15:35", "End Time": "00:17:48", "Zone Name": "Z#1"},
-                {"Start Time": "00:17:49", "End Time": "00:19:43", "Zone Name": "Z#2"},
-                {"Start Time": "00:19:44", "End Time": "00:21:40", "Zone Name": "Z#3"},
-                {"Start Time": "00:21:41", "End Time": "00:23:07", "Zone Name": "Z#4"},
-                {"Start Time": "00:23:08", "End Time": "00:24:33", "Zone Name": "Z#5"},
-                {"Start Time": "00:24:34", "End Time": "00:25:59", "Zone Name": "Z#6"},
-                {"Start Time": "00:26:00", "End Time": "00:27:37", "Zone Name": "Z#7"},
-                {"Start Time": "00:27:38", "End Time": "00:29:19", "Zone Name": "WatCool#1"},
-                {"Start Time": "00:29:20", "End Time": "00:30:41", "Zone Name": "WatCool#2"},
-                {"Start Time": "00:30:42", "End Time": "00:32:02", "Zone Name": "Exit curtain box"},
-                {"Start Time": "00:32:03", "End Time": "00:32:28", "Zone Name": "XFER#2"},
-                {"Start Time": "00:32:29", "End Time": "00:33:21", "Zone Name": "AirCool#1"},
-                {"Start Time": "00:33:22", "End Time": "00:34:15", "Zone Name": "AirCool#2"},
-                {"Start Time": "00:34:16", "End Time": "00:35:35", "Zone Name": "Exit"}
+                {"Start Time": "00:00:00", "End Time": "00:02:14", "Zone Name": "Dryer Z#1", "Color": "#FF9F43"},
+                {"Start Time": "00:02:15", "End Time": "00:04:28", "Zone Name": "Dryer Z#2", "Color": "#FECA57"},
+                {"Start Time": "00:04:29", "End Time": "00:04:58", "Zone Name": "EXT Dryer", "Color": "#FF6B6B"},
+                {"Start Time": "00:04:59", "End Time": "00:05:26", "Zone Name": "ENT DB", "Color": "#EE5253"},
+                {"Start Time": "00:05:27", "End Time": "00:07:41", "Zone Name": "DB Z#1", "Color": "#00CEC9"},
+                {"Start Time": "00:07:42", "End Time": "00:09:32", "Zone Name": "DB Z#2", "Color": "#48DBFB"},
+                {"Start Time": "00:09:33", "End Time": "00:11:23", "Zone Name": "DB Z#3", "Color": "#10AC84"},
+                {"Start Time": "00:11:24", "End Time": "00:13:38", "Zone Name": "DB Z#4", "Color": "#1DD1A1"},
+                {"Start Time": "00:13:39", "End Time": "00:15:34", "Zone Name": "XFER#1", "Color": "#54A0FF"},
+                {"Start Time": "00:15:35", "End Time": "00:17:48", "Zone Name": "Z#1", "Color": "#9B59B6"},
+                {"Start Time": "00:17:49", "End Time": "00:19:43", "Zone Name": "Z#2", "Color": "#8E44AD"},
+                {"Start Time": "00:19:44", "End Time": "00:21:40", "Zone Name": "Z#3", "Color": "#E056FD"},
+                {"Start Time": "00:21:41", "End Time": "00:23:07", "Zone Name": "Z#4", "Color": "#6C5CE7"},
+                {"Start Time": "00:23:08", "End Time": "00:24:33", "Zone Name": "Z#5", "Color": "#341F97"},
+                {"Start Time": "00:24:34", "End Time": "00:25:59", "Zone Name": "Z#6", "Color": "#5F27CD"},
+                {"Start Time": "00:26:00", "End Time": "00:27:37", "Zone Name": "Z#7", "Color": "#30336B"},
+                {"Start Time": "00:27:38", "End Time": "00:29:19", "Zone Name": "WatCool#1", "Color": "#00D2D3"},
+                {"Start Time": "00:29:20", "End Time": "00:30:41", "Zone Name": "WatCool#2", "Color": "#01A3A4"},
+                {"Start Time": "00:30:42", "End Time": "00:32:02", "Zone Name": "Exit curtain box", "Color": "#2E86DE"},
+                {"Start Time": "00:32:03", "End Time": "00:32:28", "Zone Name": "XFER#2", "Color": "#576574"},
+                {"Start Time": "00:32:29", "End Time": "00:33:21", "Zone Name": "AirCool#1", "Color": "#8395A7"},
+                {"Start Time": "00:33:22", "End Time": "00:34:15", "Zone Name": "AirCool#2", "Color": "#222F3E"},
+                {"Start Time": "00:34:16", "End Time": "00:35:35", "Zone Name": "Exit", "Color": "#576574"}
             ]
             angle_setting = -90
         else:
             zones_data = [
-                {"Start Time": "00:00:00", "End Time": "00:04:58", "Zone Name": "Dryer", "Color": "#FF8C00"},      # ส้มอุ่น (~300°C)
-                {"Start Time": "00:04:59", "End Time": "00:15:34", "Zone Name": "Debinder", "Color": "#E63946"},   # แดงส้ม (~350°C)
-                {"Start Time": "00:15:35", "End Time": "00:27:37", "Zone Name": "Brazing", "Color": "#FF0033"},    # แดงเพลิง (~600°C)
+                {"Start Time": "00:00:00", "End Time": "00:04:58", "Zone Name": "Dryer", "Color": "#FF8C00"},      # ส้มอุ่น
+                {"Start Time": "00:04:59", "End Time": "00:15:34", "Zone Name": "Debinder", "Color": "#E63946"},   # แดงส้ม
+                {"Start Time": "00:15:35", "End Time": "00:27:37", "Zone Name": "Brazing", "Color": "#FF0033"},    # แดงเพลิง
                 {"Start Time": "00:27:38", "End Time": "00:34:15", "Zone Name": "Cool", "Color": "#00B4D8"},       # ฟ้าเย็น
                 {"Start Time": "00:34:16", "End Time": "00:35:35", "Zone Name": "Exit", "Color": "#6C757D"}        # เทาเย็น
             ]
@@ -445,12 +445,6 @@ if uploaded_files:
             "#FF00FF", "#DAA520", "#800080", "#00FFFF"
         ]
 
-        zone_palette = [
-            "#FF9F43", "#00CEC9", "#10AC84", "#9B59B6", "#FF6B6B", 
-            "#FECA57", "#48DBFB", "#FF9FF3", "#54A0FF", "#5F27CD",
-            "#00D2D3", "#FF9F1A", "#2E86DE", "#EE5253", "#0ABDE3"
-        ]
-
         probe_cols = [c for c in df.columns if c.startswith("Probe #")]
         for idx, col in enumerate(probe_cols[:8]):
             fig.add_trace(
@@ -473,20 +467,16 @@ if uploaded_files:
             )
         )
 
+        # แสดงแถบสีพื้นหลังตามโหมดที่ผู้ใช้เลือกใน Sidebar
         for idx, z_item in enumerate(zones_data):
             start_t = z_item["Start Time"]
             end_t = z_item["End Time"]
             z_name = z_item["Zone Name"]
-            
-            if "Color" in z_item:
-                color_hex = z_item["Color"]
-            else:
-                color_hex = zone_palette[idx % len(zone_palette)]
+            color_hex = z_item["Color"]
 
-            fill_opacity = 0.22 if color_shading_mode == "แสดงสีตามกลุ่มงาน (By Process Group)" else 0.20
+            fill_opacity = 0.28 if color_shading_mode == "แสดงสีตามกลุ่มงาน (By Process Group)" else 0.22
             fill_rgba = hex_to_rgba(color_hex, fill_opacity)
             
-            # ปรับ line_width=0 เพื่อเอาเส้นประแนวตั้งออก
             fig.add_vrect(
                 x0=start_t,
                 x1=end_t,
@@ -494,12 +484,12 @@ if uploaded_files:
                 layer="below",
                 line_width=0
             )
-            
-            font_sz = 11 if color_shading_mode == "แสดงสีตามกลุ่มงาน (By Process Group)" else 9
+
+            font_sz = 12 if color_shading_mode == "แสดงสีตามกลุ่มงาน (By Process Group)" else 10
             
             fig.add_annotation(
                 x=start_t,
-                y=620,
+                y=610,
                 text=f"<b>{z_name}</b>",
                 showarrow=False,
                 xanchor="left",
@@ -574,7 +564,7 @@ if uploaded_files:
         st.plotly_chart(fig, use_container_width=True)
 
         # ---------------------------------------------------------
-        # 📊 ตารางสรุปค่า (เฉพาะตัวเลขสำหรับ Copy ไปวางใน Google Sheets)
+        # 📊 ตารางสรุปค่า
         # ---------------------------------------------------------
         st.markdown("### 📊 ตารางสรุปผลการวิเคราะห์ (Data Table for Google Sheets Copy)")
 
@@ -595,7 +585,7 @@ if uploaded_files:
             location = "Bottom" if p_num in [1, 2, 3, 8] else "Top"
             short_pb_name = f"PB#{p_num}"
             
-            # 1. Maximum Temperatures (°C) -> ฟอร์แมตทศนิยม 1 ตำแหน่งเสมอ
+            # 1. Maximum Temperatures (°C)
             br_max = f"{brazing_subset[col_name].max():.1f}" if not brazing_subset.empty else "0.0"
             db_max = f"{debinder_subset[col_name].max():.1f}" if not debinder_subset.empty else "0.0"
             d_max = f"{dryer_subset[col_name].max():.1f}" if not dryer_subset.empty else "0.0"
@@ -636,7 +626,6 @@ if uploaded_files:
 
         display_summary_df = pd.DataFrame(summary_rows, columns=multi_cols)
 
-        # แสดงผลตารางโดยไม่ใส่ column_config เพื่อป้องกัน Error กับ MultiIndex DataFrame
         st.dataframe(display_summary_df, use_container_width=True, hide_index=True)
 
         # คำอธิบายเกณฑ์มาตรฐาน (Process Standards Legend)
