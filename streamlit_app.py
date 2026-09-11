@@ -485,16 +485,14 @@ if uploaded_files:
 
             fill_opacity = 0.22 if color_shading_mode == "แสดงสีตามกลุ่มงาน (By Process Group)" else 0.20
             fill_rgba = hex_to_rgba(color_hex, fill_opacity)
-            line_rgba = hex_to_rgba(color_hex, 0.60)
             
+            # ปรับ line_width=0 เพื่อเอาเส้นประแนวตั้งออก
             fig.add_vrect(
                 x0=start_t,
                 x1=end_t,
                 fillcolor=fill_rgba,
                 layer="below",
-                line_width=1.5,
-                line_dash="dot",
-                line_color=line_rgba
+                line_width=0
             )
             
             font_sz = 11 if color_shading_mode == "แสดงสีตามกลุ่มงาน (By Process Group)" else 9
