@@ -383,22 +383,15 @@ if uploaded_files:
 
         if color_shading_mode == "แสดงสีตามโซน (By Zone)":
             zones_data = [
-                # โทนอุ่น (Dryer) -> อุณหภูมิเริ่มสูงขึ้น
                 {"Start Time": "00:00:00", "End Time": "00:02:14", "Zone Name": "Dryer Z#1", "Color": "#F7DC6F"},
                 {"Start Time": "00:02:15", "End Time": "00:04:28", "Zone Name": "Dryer Z#2", "Color": "#F39C12"},
                 {"Start Time": "00:04:29", "End Time": "00:04:58", "Zone Name": "EXT Dryer", "Color": "#E67E22"},
-                
-                # โทนร้อน (Debinder) -> ร้อนขึ้นเรื่อยๆ
                 {"Start Time": "00:04:59", "End Time": "00:05:26", "Zone Name": "ENT DB", "Color": "#D35400"},
                 {"Start Time": "00:05:27", "End Time": "00:07:41", "Zone Name": "DB Z#1", "Color": "#E74C3C"},
                 {"Start Time": "00:07:42", "End Time": "00:09:32", "Zone Name": "DB Z#2", "Color": "#E63946"},
                 {"Start Time": "00:09:33", "End Time": "00:11:23", "Zone Name": "DB Z#3", "Color": "#D90429"},
                 {"Start Time": "00:11:24", "End Time": "00:13:38", "Zone Name": "DB Z#4", "Color": "#C1121F"},
-                
-                # โซนเชื่อมต่อ
                 {"Start Time": "00:13:39", "End Time": "00:15:34", "Zone Name": "XFER#1", "Color": "#9B59B6"},
-                
-                # โทนร้อนจัด (Brazing) -> ร้อนที่สุด (Peak) สีแดงเพลิง
                 {"Start Time": "00:15:35", "End Time": "00:17:48", "Zone Name": "Z#1", "Color": "#FF0033"},       
                 {"Start Time": "00:17:49", "End Time": "00:19:43", "Zone Name": "Z#2", "Color": "#E6002E"},       
                 {"Start Time": "00:19:44", "End Time": "00:21:40", "Zone Name": "Z#3", "Color": "#CC0029"},       
@@ -406,8 +399,6 @@ if uploaded_files:
                 {"Start Time": "00:23:08", "End Time": "00:24:33", "Zone Name": "Z#5", "Color": "#CC0029"},       
                 {"Start Time": "00:24:34", "End Time": "00:25:59", "Zone Name": "Z#6", "Color": "#E6002E"},       
                 {"Start Time": "00:26:00", "End Time": "00:27:37", "Zone Name": "Z#7", "Color": "#FF0033"},       
-                
-                # โทนเย็น (Cooling) -> ลดอุณหภูมิกะทันหัน
                 {"Start Time": "00:27:38", "End Time": "00:29:19", "Zone Name": "WatCool#1", "Color": "#00B4D8"},
                 {"Start Time": "00:29:20", "End Time": "00:30:41", "Zone Name": "WatCool#2", "Color": "#0096C7"},
                 {"Start Time": "00:30:42", "End Time": "00:32:02", "Zone Name": "Exit curtain box", "Color": "#0077B6"},
@@ -512,7 +503,7 @@ if uploaded_files:
         if (len(df) - 1) not in tick_indices:
             tick_indices.append(len(df) - 1)
             
-        # สร้างรายการ Tick สำหรับแกน Distance โดยเฉพาะ เพื่อให้สเกลดูดีแบบทีละ 2.00 หรือ 4.00
+        # สร้างรายการ Tick สำหรับแกน Distance โดยเฉพาะ
         max_dist = df["Distance (m)"].max() if not df.empty else 50.0
         if max_dist <= 20:
             dist_dtick = 1.0
@@ -607,18 +598,18 @@ if uploaded_files:
         # ---------------------------------------------------------
         st.markdown("### 📊 ตารางสรุปผลการวิเคราะห์ (Data Table for Google Sheets Copy)")
 
-        # 📌 ปรับช่วงเวลาประมวลผลโซนให้ตรงตามอัลกอริทึมการคำนวณของ Datapaq แบบ Fine-tuned (เป๊ะวินาที)
-        # Dryer Zone (Above 175°C): 00:00:00 ถึง 00:04:31 (วินาทีที่ 0 ถึง 271)
-        dryer_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 271)]
+        # 📌 อัปเดตขอบเขต Zone สำหรับคำนวณแบบ Fine-tuned ตรงเป๊ะระดับวินาที (Based on reverse engineering)
+        # Dryer Zone (Above 175°C): 00:00:00 ถึง 00:04:30 (วินาทีที่ 0 ถึง 270)
+        dryer_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 270)]
         
-        # Debinder Zone (Above 200°C): 00:04:58 ถึง 00:14:01 (วินาทีที่ 298 ถึง 841)
-        debinder_subset = df[(df["ElapsedSeconds"] >= 298) & (df["ElapsedSeconds"] <= 841)]
+        # Debinder Zone (Above 200°C): 00:05:30 ถึง 00:14:00 (วินาทีที่ 330 ถึง 840)
+        debinder_subset = df[(df["ElapsedSeconds"] >= 330) & (df["ElapsedSeconds"] <= 840)]
         
-        # Brazing Zone Dwell Time: คิดช่วงเวลาครอบคลุมทั้งหมด 00:00:00 ถึง 00:35:35 (0 ถึง 2135 วินาที)
-        brazing_ht_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 2135)]
+        # Brazing Zone Dwell Time: คิดช่วงเวลาครอบคลุมทั้งหมดตั้งแต่ 00:00:00 ถึง 00:36:40 (0 ถึง 2200 วินาที)
+        brazing_ht_subset = df[(df["ElapsedSeconds"] >= 0)]
         
-        # Brazing Zone Max Temp: 00:15:35 ถึง 00:27:46 (วินาทีที่ 935 ถึง 1666)
-        brazing_max_subset = df[(df["ElapsedSeconds"] >= 935) & (df["ElapsedSeconds"] <= 1666)]
+        # Brazing Zone Max Temp: ขยายขอบเขตให้ครอบคลุมจุด Peak ทั้งหมด (วินาทีที่ 900 ถึง 1750)
+        brazing_max_subset = df[(df["ElapsedSeconds"] >= 900) & (df["ElapsedSeconds"] <= 1750)]
 
         probe_order = [1, 2, 3, 8, 4, 5, 6, 7]
         ordered_cols = []
@@ -637,7 +628,7 @@ if uploaded_files:
             db_max = f"{debinder_subset[col_name].max():.1f}" if not debinder_subset.empty else "0.0"
             d_max = f"{dryer_subset[col_name].max():.1f}" if not dryer_subset.empty else "0.0"
             
-            # ใช้ >= เพื่อสะสมเวลารวมตามเงื่อนไขเป๊ะๆ
+            # ใช้ >= เพื่อสะสมเวลารวมตามเงื่อนไข
             br_dwell_600 = (brazing_ht_subset[col_name] >= 600).sum() if not brazing_ht_subset.empty else 0
             br_dwell_583 = (brazing_ht_subset[col_name] >= 583).sum() if not brazing_ht_subset.empty else 0
             br_dwell_577 = (brazing_ht_subset[col_name] >= 577).sum() if not brazing_ht_subset.empty else 0
