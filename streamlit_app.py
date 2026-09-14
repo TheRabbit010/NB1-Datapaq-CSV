@@ -607,13 +607,18 @@ if uploaded_files:
         # ---------------------------------------------------------
         st.markdown("### 📊 ตารางสรุปผลการวิเคราะห์ (Data Table for Google Sheets Copy)")
 
-        # 📌 แก้ไขช่วงเวลาให้ตรงกับขอบเขต Zone จริงๆ ระดับวินาทีตามที่ตั้งค่าไว้ เพื่อให้การนับเวลาตรงกับ Datapaq
-        dryer_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 298)]      # 00:00:00 - 00:04:58
-        debinder_subset = df[(df["ElapsedSeconds"] >= 299) & (df["ElapsedSeconds"] <= 934)]   # 00:04:59 - 00:15:34
-        brazing_subset = df[(df["ElapsedSeconds"] >= 935) & (df["ElapsedSeconds"] <= 1657)]   # 00:15:35 - 00:27:37
+        # 📌 อัปเดตขอบเขต Zone ใหม่ให้ตรงกับอัลกอริทึมของ Datapaq แบบเป๊ะๆ ทุกวินาที
+        # Dryer: Datapaq คำนวณถึงแค่สิ้นสุด Z#2 (00:00:00 - 00:04:28) -> วินาทีที่ 0 ถึง 268
+        dryer_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 268)]
         
-        # ช่วงอุณหภูมิความร้อนสูง (ครอบคลุมตั้งแต่ต้นจนจบ Peak)
+        # Debinder: Datapaq เริ่มคำนวณตั้งแต่เข้า EXT Dryer จนจบ DB Z#4 (00:04:29 - 00:13:38) -> วินาทีที่ 269 ถึง 818
+        debinder_subset = df[(df["ElapsedSeconds"] >= 269) & (df["ElapsedSeconds"] <= 818)]
+        
+        # Brazing: ใช้ช่วงกว้างให้ครอบคลุม Peak หลักทั้งหมด (0 ถึง 2135)
         brazing_ht_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 2135)]
+        
+        # Subset ย่อยสำหรับหา Max Temp 
+        brazing_max_subset = df[(df["ElapsedSeconds"] >= 935) & (df["ElapsedSeconds"] <= 1657)]
 
         probe_order = [1, 2, 3, 8, 4, 5, 6, 7]
         ordered_cols = []
@@ -628,11 +633,11 @@ if uploaded_files:
             location = "Bottom" if p_num in [1, 2, 3, 8] else "Top"
             short_pb_name = f"PB#{p_num}"
             
-            br_max = f"{brazing_subset[col_name].max():.1f}" if not brazing_subset.empty else "0.0"
+            br_max = f"{brazing_max_subset[col_name].max():.1f}" if not brazing_max_subset.empty else "0.0"
             db_max = f"{debinder_subset[col_name].max():.1f}" if not debinder_subset.empty else "0.0"
             d_max = f"{dryer_subset[col_name].max():.1f}" if not dryer_subset.empty else "0.0"
             
-            # 📌 เปลี่ยนเงื่อนไขจาก `>` เป็น `>=` เพื่อให้นับครอบคลุมวินาทีที่อุณหภูมิแตะถึงเกณฑ์พอดี (ตรงตามการทำงานของซอฟต์แวร์)
+            # ใช้ >= เพื่อสะสมเวลารวมตามเงื่อนไข (ตามพฤติกรรมการปัดวินาทีของ Datapaq)
             br_dwell_600 = (brazing_ht_subset[col_name] >= 600).sum() if not brazing_ht_subset.empty else 0
             br_dwell_583 = (brazing_ht_subset[col_name] >= 583).sum() if not brazing_ht_subset.empty else 0
             br_dwell_577 = (brazing_ht_subset[col_name] >= 577).sum() if not brazing_ht_subset.empty else 0
