@@ -384,46 +384,46 @@ if uploaded_files:
         if color_shading_mode == "แสดงสีตามโซน (By Zone)":
             zones_data = [
                 # โทนอุ่น (Dryer) -> อุณหภูมิเริ่มสูงขึ้น
-                {"Start Time": "00:00:00", "End Time": "00:02:14", "Zone Name": "Dryer Z#1", "Color": "#F7DC6F"}, # เหลืองอ่อน
-                {"Start Time": "00:02:15", "End Time": "00:04:28", "Zone Name": "Dryer Z#2", "Color": "#F39C12"}, # ส้มเหลือง
-                {"Start Time": "00:04:29", "End Time": "00:04:58", "Zone Name": "EXT Dryer", "Color": "#E67E22"}, # ส้ม
+                {"Start Time": "00:00:00", "End Time": "00:02:14", "Zone Name": "Dryer Z#1", "Color": "#F7DC6F"},
+                {"Start Time": "00:02:15", "End Time": "00:04:28", "Zone Name": "Dryer Z#2", "Color": "#F39C12"},
+                {"Start Time": "00:04:29", "End Time": "00:04:58", "Zone Name": "EXT Dryer", "Color": "#E67E22"},
                 
                 # โทนร้อน (Debinder) -> ร้อนขึ้นเรื่อยๆ
-                {"Start Time": "00:04:59", "End Time": "00:05:26", "Zone Name": "ENT DB", "Color": "#D35400"},    # ส้มเข้ม
-                {"Start Time": "00:05:27", "End Time": "00:07:41", "Zone Name": "DB Z#1", "Color": "#E74C3C"},    # แดงส้มสว่าง
-                {"Start Time": "00:07:42", "End Time": "00:09:32", "Zone Name": "DB Z#2", "Color": "#E63946"},    # แดงปานกลาง
-                {"Start Time": "00:09:33", "End Time": "00:11:23", "Zone Name": "DB Z#3", "Color": "#D90429"},    # แดงสด
-                {"Start Time": "00:11:24", "End Time": "00:13:38", "Zone Name": "DB Z#4", "Color": "#C1121F"},    # แดงเข้ม
+                {"Start Time": "00:04:59", "End Time": "00:05:26", "Zone Name": "ENT DB", "Color": "#D35400"},
+                {"Start Time": "00:05:27", "End Time": "00:07:41", "Zone Name": "DB Z#1", "Color": "#E74C3C"},
+                {"Start Time": "00:07:42", "End Time": "00:09:32", "Zone Name": "DB Z#2", "Color": "#E63946"},
+                {"Start Time": "00:09:33", "End Time": "00:11:23", "Zone Name": "DB Z#3", "Color": "#D90429"},
+                {"Start Time": "00:11:24", "End Time": "00:13:38", "Zone Name": "DB Z#4", "Color": "#C1121F"},
                 
                 # โซนเชื่อมต่อ
-                {"Start Time": "00:13:39", "End Time": "00:15:34", "Zone Name": "XFER#1", "Color": "#9B59B6"},    # ม่วง (เชื่อมต่อความร้อน)
+                {"Start Time": "00:13:39", "End Time": "00:15:34", "Zone Name": "XFER#1", "Color": "#9B59B6"},
                 
                 # โทนร้อนจัด (Brazing) -> ร้อนที่สุด (Peak) สีแดงเพลิง
                 {"Start Time": "00:15:35", "End Time": "00:17:48", "Zone Name": "Z#1", "Color": "#FF0033"},       
                 {"Start Time": "00:17:49", "End Time": "00:19:43", "Zone Name": "Z#2", "Color": "#E6002E"},       
                 {"Start Time": "00:19:44", "End Time": "00:21:40", "Zone Name": "Z#3", "Color": "#CC0029"},       
-                {"Start Time": "00:21:41", "End Time": "00:23:07", "Zone Name": "Z#4", "Color": "#B30024"},       # Peak แดงเข้มจัด
+                {"Start Time": "00:21:41", "End Time": "00:23:07", "Zone Name": "Z#4", "Color": "#B30024"},       
                 {"Start Time": "00:23:08", "End Time": "00:24:33", "Zone Name": "Z#5", "Color": "#CC0029"},       
                 {"Start Time": "00:24:34", "End Time": "00:25:59", "Zone Name": "Z#6", "Color": "#E6002E"},       
                 {"Start Time": "00:26:00", "End Time": "00:27:37", "Zone Name": "Z#7", "Color": "#FF0033"},       
                 
                 # โทนเย็น (Cooling) -> ลดอุณหภูมิกะทันหัน
-                {"Start Time": "00:27:38", "End Time": "00:29:19", "Zone Name": "WatCool#1", "Color": "#00B4D8"}, # ฟ้าสดใส
-                {"Start Time": "00:29:20", "End Time": "00:30:41", "Zone Name": "WatCool#2", "Color": "#0096C7"}, # ฟ้าอมน้ำเงิน
-                {"Start Time": "00:30:42", "End Time": "00:32:02", "Zone Name": "Exit curtain box", "Color": "#0077B6"}, # น้ำเงิน
-                {"Start Time": "00:32:03", "End Time": "00:32:28", "Zone Name": "XFER#2", "Color": "#023E8A"},    # น้ำเงินเข้ม
-                {"Start Time": "00:32:29", "End Time": "00:33:21", "Zone Name": "AirCool#1", "Color": "#48CAE4"}, # ฟ้าลมเย็น
-                {"Start Time": "00:33:22", "End Time": "00:34:15", "Zone Name": "AirCool#2", "Color": "#90E0EF"}, # ฟ้าสว่าง
-                {"Start Time": "00:34:16", "End Time": "00:35:35", "Zone Name": "Exit", "Color": "#CAF0F8"}       # ขาวอมฟ้า (อุณหภูมิห้อง)
+                {"Start Time": "00:27:38", "End Time": "00:29:19", "Zone Name": "WatCool#1", "Color": "#00B4D8"},
+                {"Start Time": "00:29:20", "End Time": "00:30:41", "Zone Name": "WatCool#2", "Color": "#0096C7"},
+                {"Start Time": "00:30:42", "End Time": "00:32:02", "Zone Name": "Exit curtain box", "Color": "#0077B6"},
+                {"Start Time": "00:32:03", "End Time": "00:32:28", "Zone Name": "XFER#2", "Color": "#023E8A"},
+                {"Start Time": "00:32:29", "End Time": "00:33:21", "Zone Name": "AirCool#1", "Color": "#48CAE4"},
+                {"Start Time": "00:33:22", "End Time": "00:34:15", "Zone Name": "AirCool#2", "Color": "#90E0EF"},
+                {"Start Time": "00:34:16", "End Time": "00:35:35", "Zone Name": "Exit", "Color": "#CAF0F8"}
             ]
             angle_setting = -90
         else:
             zones_data = [
-                {"Start Time": "00:00:00", "End Time": "00:04:58", "Zone Name": "Dryer", "Color": "#F39C12"},      # ส้ม
-                {"Start Time": "00:04:59", "End Time": "00:15:34", "Zone Name": "Debinder", "Color": "#E74C3C"},   # แดงส้ม
-                {"Start Time": "00:15:35", "End Time": "00:27:37", "Zone Name": "Brazing", "Color": "#FF0033"},    # แดงเพลิง
-                {"Start Time": "00:27:38", "End Time": "00:34:15", "Zone Name": "Cool", "Color": "#00B4D8"},       # ฟ้าเย็น
-                {"Start Time": "00:34:16", "End Time": "00:35:35", "Zone Name": "Exit", "Color": "#90E0EF"}        # ฟ้าสว่าง
+                {"Start Time": "00:00:00", "End Time": "00:04:58", "Zone Name": "Dryer", "Color": "#F39C12"},      
+                {"Start Time": "00:04:59", "End Time": "00:15:34", "Zone Name": "Debinder", "Color": "#E74C3C"},   
+                {"Start Time": "00:15:35", "End Time": "00:27:37", "Zone Name": "Brazing", "Color": "#FF0033"},    
+                {"Start Time": "00:27:38", "End Time": "00:34:15", "Zone Name": "Cool", "Color": "#00B4D8"},       
+                {"Start Time": "00:34:16", "End Time": "00:35:35", "Zone Name": "Exit", "Color": "#90E0EF"}        
             ]
             angle_setting = 0
 
@@ -607,10 +607,12 @@ if uploaded_files:
         # ---------------------------------------------------------
         st.markdown("### 📊 ตารางสรุปผลการวิเคราะห์ (Data Table for Google Sheets Copy)")
 
-        dryer_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 270)]      
-        debinder_subset = df[(df["ElapsedSeconds"] >= 330) & (df["ElapsedSeconds"] <= 840)]   
-        brazing_subset = df[(df["ElapsedSeconds"] >= 935) & (df["ElapsedSeconds"] <= 1759)]   
+        # 📌 แก้ไขช่วงเวลาให้ตรงกับขอบเขต Zone จริงๆ ระดับวินาทีตามที่ตั้งค่าไว้ เพื่อให้การนับเวลาตรงกับ Datapaq
+        dryer_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 298)]      # 00:00:00 - 00:04:58
+        debinder_subset = df[(df["ElapsedSeconds"] >= 299) & (df["ElapsedSeconds"] <= 934)]   # 00:04:59 - 00:15:34
+        brazing_subset = df[(df["ElapsedSeconds"] >= 935) & (df["ElapsedSeconds"] <= 1657)]   # 00:15:35 - 00:27:37
         
+        # ช่วงอุณหภูมิความร้อนสูง (ครอบคลุมตั้งแต่ต้นจนจบ Peak)
         brazing_ht_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 2135)]
 
         probe_order = [1, 2, 3, 8, 4, 5, 6, 7]
@@ -630,12 +632,13 @@ if uploaded_files:
             db_max = f"{debinder_subset[col_name].max():.1f}" if not debinder_subset.empty else "0.0"
             d_max = f"{dryer_subset[col_name].max():.1f}" if not dryer_subset.empty else "0.0"
             
-            br_dwell_600 = (brazing_ht_subset[col_name] > 600).sum() if not brazing_ht_subset.empty else 0
-            br_dwell_583 = (brazing_ht_subset[col_name] > 583).sum() if not brazing_ht_subset.empty else 0
-            br_dwell_577 = (brazing_ht_subset[col_name] > 577).sum() if not brazing_ht_subset.empty else 0
+            # 📌 เปลี่ยนเงื่อนไขจาก `>` เป็น `>=` เพื่อให้นับครอบคลุมวินาทีที่อุณหภูมิแตะถึงเกณฑ์พอดี (ตรงตามการทำงานของซอฟต์แวร์)
+            br_dwell_600 = (brazing_ht_subset[col_name] >= 600).sum() if not brazing_ht_subset.empty else 0
+            br_dwell_583 = (brazing_ht_subset[col_name] >= 583).sum() if not brazing_ht_subset.empty else 0
+            br_dwell_577 = (brazing_ht_subset[col_name] >= 577).sum() if not brazing_ht_subset.empty else 0
             
-            db_dwell_200 = (debinder_subset[col_name] > 200).sum() if not debinder_subset.empty else 0
-            d_dwell_175 = (dryer_subset[col_name] > 175).sum() if not dryer_subset.empty else 0
+            db_dwell_200 = (debinder_subset[col_name] >= 200).sum() if not debinder_subset.empty else 0
+            d_dwell_175 = (dryer_subset[col_name] >= 175).sum() if not dryer_subset.empty else 0
 
             summary_rows.append([
                 location,
