@@ -607,17 +607,17 @@ if uploaded_files:
         # ---------------------------------------------------------
         st.markdown("### 📊 ตารางสรุปผลการวิเคราะห์ (Data Table for Google Sheets Copy)")
 
-        # 📌 อัปเดตขอบเขต Zone ใหม่ให้ตรงกับอัลกอริทึมของ Datapaq แบบเป๊ะๆ ทุกวินาที
-        # Dryer: Datapaq คำนวณถึงแค่สิ้นสุด Z#2 (00:00:00 - 00:04:28) -> วินาทีที่ 0 ถึง 268
-        dryer_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 268)]
+        # 📌 ปรับช่วงเวลาประมวลผลโซนให้ตรงตามอัลกอริทึมของ Datapaq ทุกวินาที
+        # Dryer Zone (Above 175°C): 00:00:00 ถึง 00:04:31 (วินาทีที่ 0 ถึง 271)
+        dryer_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 271)]
         
-        # Debinder: Datapaq เริ่มคำนวณตั้งแต่เข้า EXT Dryer จนจบ DB Z#4 (00:04:29 - 00:13:38) -> วินาทีที่ 269 ถึง 818
-        debinder_subset = df[(df["ElapsedSeconds"] >= 269) & (df["ElapsedSeconds"] <= 818)]
+        # Debinder Zone (Above 200°C): 00:04:58 ถึง 00:14:01 (วินาทีที่ 298 ถึง 841)
+        debinder_subset = df[(df["ElapsedSeconds"] >= 298) & (df["ElapsedSeconds"] <= 841)]
         
-        # Brazing: ใช้ช่วงกว้างให้ครอบคลุม Peak หลักทั้งหมด (0 ถึง 2135)
+        # Brazing Zone: คิดช่วงเวลาครอบคลุมทั้งหมด 00:00:00 ถึง 00:35:35 (0 ถึง 2135 วินาที)
         brazing_ht_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 2135)]
         
-        # Subset ย่อยสำหรับหา Max Temp 
+        # Subset สำหรับหาอุณหภูมิสูงสุด (Max Temp) ในโซน Brazing
         brazing_max_subset = df[(df["ElapsedSeconds"] >= 935) & (df["ElapsedSeconds"] <= 1657)]
 
         probe_order = [1, 2, 3, 8, 4, 5, 6, 7]
@@ -637,7 +637,7 @@ if uploaded_files:
             db_max = f"{debinder_subset[col_name].max():.1f}" if not debinder_subset.empty else "0.0"
             d_max = f"{dryer_subset[col_name].max():.1f}" if not dryer_subset.empty else "0.0"
             
-            # ใช้ >= เพื่อสะสมเวลารวมตามเงื่อนไข (ตามพฤติกรรมการปัดวินาทีของ Datapaq)
+            # ใช้ >= เพื่อสะสมเวลารวมตามเงื่อนไข (ตรงตามพฤติกรรมการปัดวินาทีของ Datapaq)
             br_dwell_600 = (brazing_ht_subset[col_name] >= 600).sum() if not brazing_ht_subset.empty else 0
             br_dwell_583 = (brazing_ht_subset[col_name] >= 583).sum() if not brazing_ht_subset.empty else 0
             br_dwell_577 = (brazing_ht_subset[col_name] >= 577).sum() if not brazing_ht_subset.empty else 0
