@@ -3,7 +3,6 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
 import io
-import re
 import openpyxl
 
 # 1. ตั้งค่า Page Config
@@ -203,7 +202,7 @@ def hex_to_rgba(hex_str, opacity=0.25):
     b = int(hex_str[4:6], 16)
     return f"rgba({r}, {g}, {b}, {opacity})"
 
-# 5. ฟังก์ชันอ่านไฟล์ CSV และดึงข้อมูล
+# 5. ฟังก์ชันอ่านไฟล์ CSV และดึงข้อมูล (แก้ไขการ Parse ตามโครงสร้าง Datapaq จริง)
 def parse_single_file(uploaded_file):
     uploaded_file.seek(0)
     raw_bytes = uploaded_file.read()
@@ -221,8 +220,6 @@ def parse_single_file(uploaded_file):
 
     lines = text_content.splitlines()
     
-    interval_sec = 1
-    start_sec = 0
     probe_labels = {}
     data_rows = []
     
@@ -255,46 +252,50 @@ def parse_single_file(uploaded_file):
                     metadata["operator"] = val
                 elif key.lower() == "product":
                     metadata["product"] = val
-                elif key.lower() == "interval":
-                    parts = val.split(":")
-                    if len(parts) == 3:
-                        interval_sec = int(parts[0])*3600 + int(parts[1])*60 + int(parts[2])
-                elif key.lower() == "start time":
-                    parts = val.split(":")
-                    if len(parts) == 3:
-                        start_sec = int(parts[0])*3600 + int(parts[1])*60 + int(parts[2])
                 elif key.isdigit():
                     ch_num = int(key)
                     probe_labels[ch_num] = val
         else:
             parts = [p.strip() for p in line_str.split(",") if p.strip() != ""]
-            if len(parts) >= 8:
+            # แถบข้อมูลใน Datapaq CSV: Col 0 = เวลา (HH:MM:SS), Col 1 = ระยะทาง (m), Col 2..9 = ค่าอุณหภูมิ Probe 1-8
+            if len(parts) >= 10:
                 try:
-                    vals = [float(p) for p in parts[:8]]
-                    data_rows.append(vals)
-                except ValueError:
+                    time_str = parts[0]
+                    t_parts = time_str.split(":")
+                    if len(t_parts) == 3:
+                        elapsed_sec = int(t_parts[0]) * 3600 + int(t_parts[1]) * 60 + int(t_parts[2])
+                    else:
+                        elapsed_sec = len(data_rows)
+                    
+                    dist_val = float(parts[1])
+                    probe_vals = [float(p) for p in parts[2:10]]
+                    
+                    data_rows.append({
+                        "elapsed_sec": elapsed_sec,
+                        "time_str": time_str,
+                        "dist_val": dist_val,
+                        "probes": probe_vals
+                    })
+                except (ValueError, IndexError):
                     continue
 
     if not data_rows:
         return pd.DataFrame(), metadata
 
     parsed_data = []
-    for idx, row_vals in enumerate(data_rows):
-        current_total_sec = start_sec + (idx * interval_sec)
-        time_str = format_seconds_to_time(current_total_sec)
-        distance_m = current_total_sec * 0.02
-        
+    for row in data_rows:
         row_dict = {
-            "ElapsedSeconds": current_total_sec,
-            "Time (HH:MM:SS)": time_str,
-            "Distance (m)": round(distance_m, 2)
+            "ElapsedSeconds": row["elapsed_sec"],
+            "Time (HH:MM:SS)": row["time_str"],
+            "Distance (m)": round(row["dist_val"], 2)
         }
         
         for i in range(1, 9):
             col_label = f"Probe #{i}"
             if i in probe_labels:
-                col_label = f"Probe #{i}: {probe_labels[i][:15]}..." if len(probe_labels[i]) > 15 else f"Probe #{i}: {probe_labels[i]}"
-            row_dict[col_label] = row_vals[i-1]
+                lbl = probe_labels[i]
+                col_label = f"Probe #{i}: {lbl[:15]}..." if len(lbl) > 15 else f"Probe #{i}: {lbl}"
+            row_dict[col_label] = row["probes"][i-1]
             
         parsed_data.append(row_dict)
 
@@ -571,7 +572,7 @@ if uploaded_files:
         debinder_subset = df[(df["ElapsedSeconds"] >= 330) & (df["ElapsedSeconds"] <= 840)]   # Debinder: 00:05:30 - 00:14:00
         brazing_subset = df[(df["ElapsedSeconds"] >= 935) & (df["ElapsedSeconds"] <= 1759)]   # Brazing Max Temp: 00:15:35 - 00:29:19
         
-        # 📌 ช่วงเวลาคำนวณ Dwell Time ตามเงื่อนไขใหม่ (00:00:00 to 00:35:35 -> วินาทีที่ 0 ถึง 2135)
+        # 📌 ช่วงเวลาคำนวณ Dwell Time ตามเงื่อนไข (00:00:00 to 00:35:35 -> วินาทีที่ 0 ถึง 2135)
         brazing_ht_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 2135)]
 
         probe_order = [1, 2, 3, 8, 4, 5, 6, 7]
