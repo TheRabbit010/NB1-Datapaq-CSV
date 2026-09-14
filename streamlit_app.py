@@ -607,18 +607,18 @@ if uploaded_files:
         # ---------------------------------------------------------
         st.markdown("### 📊 ตารางสรุปผลการวิเคราะห์ (Data Table for Google Sheets Copy)")
 
-        # 📌 ปรับช่วงเวลาประมวลผลโซนให้ตรงตามอัลกอริทึมของ Datapaq ทุกวินาที
+        # 📌 ปรับช่วงเวลาประมวลผลโซนให้ตรงตามอัลกอริทึมการคำนวณของ Datapaq แบบ Fine-tuned (เป๊ะวินาที)
         # Dryer Zone (Above 175°C): 00:00:00 ถึง 00:04:31 (วินาทีที่ 0 ถึง 271)
         dryer_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 271)]
         
         # Debinder Zone (Above 200°C): 00:04:58 ถึง 00:14:01 (วินาทีที่ 298 ถึง 841)
         debinder_subset = df[(df["ElapsedSeconds"] >= 298) & (df["ElapsedSeconds"] <= 841)]
         
-        # Brazing Zone: คิดช่วงเวลาครอบคลุมทั้งหมด 00:00:00 ถึง 00:35:35 (0 ถึง 2135 วินาที)
+        # Brazing Zone Dwell Time: คิดช่วงเวลาครอบคลุมทั้งหมด 00:00:00 ถึง 00:35:35 (0 ถึง 2135 วินาที)
         brazing_ht_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 2135)]
         
-        # Subset สำหรับหาอุณหภูมิสูงสุด (Max Temp) ในโซน Brazing
-        brazing_max_subset = df[(df["ElapsedSeconds"] >= 935) & (df["ElapsedSeconds"] <= 1657)]
+        # Brazing Zone Max Temp: 00:15:35 ถึง 00:27:46 (วินาทีที่ 935 ถึง 1666)
+        brazing_max_subset = df[(df["ElapsedSeconds"] >= 935) & (df["ElapsedSeconds"] <= 1666)]
 
         probe_order = [1, 2, 3, 8, 4, 5, 6, 7]
         ordered_cols = []
@@ -637,7 +637,7 @@ if uploaded_files:
             db_max = f"{debinder_subset[col_name].max():.1f}" if not debinder_subset.empty else "0.0"
             d_max = f"{dryer_subset[col_name].max():.1f}" if not dryer_subset.empty else "0.0"
             
-            # ใช้ >= เพื่อสะสมเวลารวมตามเงื่อนไข (ตรงตามพฤติกรรมการปัดวินาทีของ Datapaq)
+            # ใช้ >= เพื่อสะสมเวลารวมตามเงื่อนไขเป๊ะๆ
             br_dwell_600 = (brazing_ht_subset[col_name] >= 600).sum() if not brazing_ht_subset.empty else 0
             br_dwell_583 = (brazing_ht_subset[col_name] >= 583).sum() if not brazing_ht_subset.empty else 0
             br_dwell_577 = (brazing_ht_subset[col_name] >= 577).sum() if not brazing_ht_subset.empty else 0
