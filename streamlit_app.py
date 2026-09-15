@@ -2,6 +2,7 @@ import io
 import re
 import openpyxl
 import pandas as pd
+import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
@@ -237,7 +238,8 @@ def parse_single_file(uploaded_file):
         "paqfile start time": "-",
         "title": "-",
         "operator": "-",
-        "product": "-"
+        "product": "-",
+        "raw_text": text_content
     }
 
     for line in lines:
@@ -382,8 +384,26 @@ if uploaded_files:
         st.sidebar.markdown("---")
         st.sidebar.header("🎛️ Dynamic Controls")
         
-        st.sidebar.subheader("🎨 โหมดแสดงสีพื้นหลัง (Background Shading Mode)")
-        
+        # 📌 ระบบตรวจจับขอบเขตเวลาอัตโนมัติตาม Recipe Model ของไฟล์
+        raw_text_meta = metadata.get("raw_text", "").upper()
+        if "16XHP" in raw_text_meta:
+            default_dryer_end = 270
+            default_db_start = 330
+            default_db_end = 840
+            detected_model_name = "16XHP"
+        else:
+            default_dryer_end = 271
+            default_db_start = 298
+            default_db_end = 841
+            detected_model_name = "27XHP / SU2"
+
+        st.sidebar.info(f"🤖 ตรวจพบประเภทสูตรอัตโนมัติ: **{detected_model_name}**")
+
+        # 🎛️ เพิ่ม Slider ปรับแต่งช่วงวินาทีเพื่อ Fine-Tune เพิ่มเติมได้ถ้าต้องการ
+        with st.sidebar.expander("🛠️ ปรับขอบเขตวินาทีของโซน (Optional Zone Boundaries)"):
+            dryer_max_sec = st.slider("Dryer End Sec (วินาทีที่จบ Dryer):", 200, 350, default_dryer_end)
+            db_range_sec = st.slider("Debinder Zone Sec (ช่วงวินาที Debinder):", 250, 900, (default_db_start, default_db_end))
+
         color_shading_mode = st.sidebar.radio(
             "เลือกโหมดแสดงสี:",
             ["แสดงสีตามโซน (By Zone)", "แสดงสีตามกลุ่มงาน (By Process Group)"],
@@ -606,21 +626,18 @@ if uploaded_files:
         st.plotly_chart(fig, use_container_width=True)
 
         # ---------------------------------------------------------
-        # 📊 ตารางสรุปค่า (อัปเดตใช้เงื่อนไข Distance (m) สำหรับ Dryer และ Debinder)
+        # 📊 ตารางสรุปค่า (อัปเดตใช้ช่วงเวลาตามสูตรที่ตรวจพบ)
         # ---------------------------------------------------------
         st.markdown("### 📊 ตารางสรุปผลการวิเคราะห์ (Data Table for Google Sheets Copy)")
 
-        # 📌 เปลี่ยนการตัดโซนมาใช้ Distance (m) ตามระยะทางจริงของเตาอบ
-        # Dryer Zone (Above 175°C): ระยะทาง 0.00 m ถึง 6.32 m
-        dryer_subset = df[(df["Distance (m)"] >= 0.0) & (df["Distance (m)"] <= 6.32)]
-        
-        # Debinder Zone (Above 200°C): ระยะทาง 6.95 m ถึง 19.62 m
-        debinder_subset = df[(df["Distance (m)"] >= 6.95) & (df["Distance (m)"] <= 19.62)]
+        # 📌 การตัด Subset ตามสไลเดอร์/การตรวจจับสูตรอัตโนมัติ
+        dryer_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= dryer_max_sec)]
+        debinder_subset = df[(df["ElapsedSeconds"] >= db_range_sec[0]) & (df["ElapsedSeconds"] <= db_range_sec[1])]
         
         # Brazing Zone Dwell Time: สะสมเวลาทั้งไฟล์
-        brazing_ht_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 2200)]
+        brazing_ht_subset = df[(df["ElapsedSeconds"] >= 0)]
         
-        # Brazing Zone Max Temp: คงเดิมตามที่คุณระบุไว้
+        # Brazing Zone Max Temp: ช่วงแช่อุณหภูมิสูงสุด
         brazing_max_subset = df[(df["ElapsedSeconds"] >= 900) & (df["ElapsedSeconds"] <= 1750)]
 
         # ลำดับ Probe ให้ตรงตามแม่แบบ: 1, 2, 3, 8, 4, 5, 6, 7
@@ -641,17 +658,18 @@ if uploaded_files:
 
             short_pb_name = f"PB#{p_num}"
             
+            # Max Temp (คงเดิมตามที่คุณระบุไว้)
             br_max = f"{brazing_max_subset[col_name].max():.1f}" if not brazing_max_subset.empty else "0.0"
             db_max = f"{debinder_subset[col_name].max():.1f}" if not debinder_subset.empty else "0.0"
             d_max = f"{dryer_subset[col_name].max():.1f}" if not dryer_subset.empty else "0.0"
             
-            # สะสมจำนวนวินาทีที่อุณหภูมิถึงเกณฑ์บนระยะทางจริง
-            br_dwell_600 = (brazing_ht_subset[col_name] >= 600).sum() if not brazing_ht_subset.empty else 0
-            br_dwell_583 = (brazing_ht_subset[col_name] >= 583).sum() if not brazing_ht_subset.empty else 0
-            br_dwell_577 = (brazing_ht_subset[col_name] >= 577).sum() if not brazing_ht_subset.empty else 0
+            # Dwell Time
+            br_dwell_600 = (brazing_ht_subset[col_name] >= 600.0).sum() if not brazing_ht_subset.empty else 0
+            br_dwell_583 = (brazing_ht_subset[col_name] >= 583.0).sum() if not brazing_ht_subset.empty else 0
+            br_dwell_577 = (brazing_ht_subset[col_name] >= 577.0).sum() if not brazing_ht_subset.empty else 0
             
-            db_dwell_200 = (debinder_subset[col_name] >= 200).sum() if not debinder_subset.empty else 0
-            d_dwell_175 = (dryer_subset[col_name] >= 175).sum() if not dryer_subset.empty else 0
+            db_dwell_200 = (debinder_subset[col_name] >= 200.0).sum() if not debinder_subset.empty else 0
+            d_dwell_175 = (dryer_subset[col_name] >= 175.0).sum() if not dryer_subset.empty else 0
 
             summary_rows.append([
                 location,
