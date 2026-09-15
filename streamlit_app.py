@@ -1,10 +1,10 @@
+import io
+import re
+import openpyxl
 import pandas as pd
-import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
-import io
-import openpyxl
 
 # 1. ตั้งค่า Page Config
 st.set_page_config(
@@ -84,7 +84,7 @@ st.markdown("""
             font-weight: bold !important;
         }
 
-        /* สไตล์กล่องแสดง Header Metadata แบบ Raw Header */
+        /* สไตล์กล่องแสดง Header Metadata แบบ Raw Header (#key = value) */
         .raw-header-box {
             background-color: #161b22;
             border: 1px solid #30363d;
@@ -188,64 +188,15 @@ st.markdown("""
 # 3. แสดงชื่อโปรแกรมหลัก
 st.title("🏭 Datapaq NB1")
 
-# =========================================================================
-# ฟังก์ชันคณิตศาสตร์: คำนวณ Dwell Time แบบ Linear Interpolation (แม่นยำเทียบเท่า Datapaq)
-# =========================================================================
-def calculate_exact_dwell_time(df_subset, col_name, threshold):
-    """คำนวณระยะเวลา (วินาที) ที่อุณหภูมิอยู่เหนือ Threshold โดยหาจุดตัดกราฟแบบทศนิยม"""
-    if df_subset.empty:
-        return 0.0
-    
-    # ดึงค่าเวลาและอุณหภูมิมาเป็น Array เพื่อคำนวณ
-    df_sub = df_subset.sort_values("ElapsedSeconds").reset_index(drop=True)
-    times = df_sub["ElapsedSeconds"].to_numpy(dtype=float)
-    temps = df_sub[col_name].to_numpy(dtype=float)
-    
-    # ถ้าอุณหภูมิไม่ถึงเกณฑ์เลย ให้คืนค่า 0
-    if not np.any(temps >= threshold):
-        return 0.0
-        
-    total_dwell = 0.0
-    in_zone = False
-    t_start = times[0]
-    
-    # เช็คจุดเริ่มต้น
-    if temps[0] >= threshold:
-        in_zone = True
-        t_start = times[0]
-        
-    for i in range(len(temps) - 1):
-        T1, T2 = temps[i], temps[i+1]
-        t1, t2 = times[i], times[i+1]
-        
-        # กราฟตัดขึ้น (Rising Edge)
-        if T1 < threshold <= T2:
-            t_cross = t1 + ((threshold - T1) / (T2 - T1)) * (t2 - t1) if T2 != T1 else t1
-            t_start = t_cross
-            in_zone = True
-            
-        # กราฟตัดลง (Falling Edge)
-        elif T1 >= threshold > T2:
-            t_cross = t1 + ((threshold - T1) / (T2 - T1)) * (t2 - t1) if T2 != T1 else t1
-            if in_zone:
-                total_dwell += (t_cross - t_start)
-                in_zone = False
-                
-    # กรณีจบ Subset แล้วอุณหภูมิยังค้างอยู่เหนือ Threshold
-    if in_zone:
-        total_dwell += (times[-1] - t_start)
-        
-    return total_dwell
-
+# 4. ฟังก์ชันแปลงวินาทีเป็นรูปแบบ mm:ss หรือ hh:mm:ss
 def format_seconds_to_time(total_seconds):
-    """แปลงวินาทีเป็นรูปแบบเวลา โดยปัดเศษทศนิยมตามหลักคณิตศาสตร์"""
-    if pd.isna(total_seconds) or total_seconds == 0.0:
+    if pd.isna(total_seconds) or total_seconds == 0:
         return "00:00"
     
-    sec_int = int(np.round(total_seconds))
-    hours = sec_int // 3600
-    minutes = (sec_int % 3600) // 60
-    seconds = sec_int % 60
+    total_sec = int(round(total_seconds))
+    hours = total_sec // 3600
+    minutes = (total_sec % 3600) // 60
+    seconds = total_sec % 60
     
     if hours == 0:
         return f"{minutes:02d}:{seconds:02d}"
@@ -439,7 +390,6 @@ if uploaded_files:
             index=0
         )
 
-        # เพิ่มตัวเลือกชื่อตำแหน่งว่าจะเป็น Right/Left หรือ Bottom/Top
         position_naming = st.sidebar.radio(
             "เลือกรูปแบบชื่อตำแหน่งหัววัด (Location Name):",
             ["Bottom / Top", "Right / Left"],
@@ -624,7 +574,6 @@ if uploaded_files:
                 anchor="free",
                 position=0.00,
                 
-                # ปรับแต่งสเกล Distance ใหม่ให้เป็นเชิงเส้น (Linear)
                 tickmode="linear",
                 tick0=0,
                 dtick=dist_dtick,
@@ -638,7 +587,6 @@ if uploaded_files:
                 linewidth=1,
                 linecolor="#F0B90B",
                 
-                # เพิ่มขีดย่อย (Minor Ticks)
                 minor=dict(
                     tickmode="linear",
                     tick0=0,
@@ -658,17 +606,24 @@ if uploaded_files:
         st.plotly_chart(fig, use_container_width=True)
 
         # ---------------------------------------------------------
-        # 📊 ตารางสรุปค่า (แก้ไข Linear Interpolation & ลำดับ Probe)
+        # 📊 ตารางสรุปค่า (อัปเดตใช้เงื่อนไข Distance (m) สำหรับ Dryer และ Debinder)
         # ---------------------------------------------------------
         st.markdown("### 📊 ตารางสรุปผลการวิเคราะห์ (Data Table for Google Sheets Copy)")
 
-        # กำหนด Zone สำหรับคำนวณ (กว้างพอที่จะคลุมจุด Peak ทั้งหมด)
-        dryer_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 270)]
-        debinder_subset = df[(df["ElapsedSeconds"] >= 330) & (df["ElapsedSeconds"] <= 840)]
+        # 📌 เปลี่ยนการตัดโซนมาใช้ Distance (m) ตามระยะทางจริงของเตาอบ
+        # Dryer Zone (Above 175°C): ระยะทาง 0.00 m ถึง 6.32 m
+        dryer_subset = df[(df["Distance (m)"] >= 0.0) & (df["Distance (m)"] <= 6.32)]
+        
+        # Debinder Zone (Above 200°C): ระยะทาง 6.95 m ถึง 19.62 m
+        debinder_subset = df[(df["Distance (m)"] >= 6.95) & (df["Distance (m)"] <= 19.62)]
+        
+        # Brazing Zone Dwell Time: สะสมเวลาทั้งไฟล์
         brazing_ht_subset = df[(df["ElapsedSeconds"] >= 0) & (df["ElapsedSeconds"] <= 2200)]
+        
+        # Brazing Zone Max Temp: คงเดิมตามที่คุณระบุไว้
         brazing_max_subset = df[(df["ElapsedSeconds"] >= 900) & (df["ElapsedSeconds"] <= 1750)]
 
-        # 📌 ลำดับ Probe ให้ตรงตามภาพ (PB#8 แทรกระหว่าง 3 และ 4)
+        # ลำดับ Probe ให้ตรงตามแม่แบบ: 1, 2, 3, 8, 4, 5, 6, 7
         probe_order = [1, 2, 3, 8, 4, 5, 6, 7]
         ordered_cols = []
         for p_num in probe_order:
@@ -679,7 +634,6 @@ if uploaded_files:
 
         summary_rows = []
         for p_num, col_name in ordered_cols:
-            # กำหนดกลุ่มตำแหน่ง
             if position_naming == "Bottom / Top":
                 location = "Bottom" if p_num in [1, 2, 3, 8] else "Top"
             else:
@@ -687,18 +641,17 @@ if uploaded_files:
 
             short_pb_name = f"PB#{p_num}"
             
-            # หาค่าอุณหภูมิสูงสุด
             br_max = f"{brazing_max_subset[col_name].max():.1f}" if not brazing_max_subset.empty else "0.0"
             db_max = f"{debinder_subset[col_name].max():.1f}" if not debinder_subset.empty else "0.0"
             d_max = f"{dryer_subset[col_name].max():.1f}" if not dryer_subset.empty else "0.0"
             
-            # 📌 คำนวณ Dwell Time ด้วยระบบ Linear Interpolation (แม่นยำ 100%)
-            br_dwell_600 = calculate_exact_dwell_time(brazing_ht_subset, col_name, 600.0)
-            br_dwell_583 = calculate_exact_dwell_time(brazing_ht_subset, col_name, 583.0)
-            br_dwell_577 = calculate_exact_dwell_time(brazing_ht_subset, col_name, 577.0)
+            # สะสมจำนวนวินาทีที่อุณหภูมิถึงเกณฑ์บนระยะทางจริง
+            br_dwell_600 = (brazing_ht_subset[col_name] >= 600).sum() if not brazing_ht_subset.empty else 0
+            br_dwell_583 = (brazing_ht_subset[col_name] >= 583).sum() if not brazing_ht_subset.empty else 0
+            br_dwell_577 = (brazing_ht_subset[col_name] >= 577).sum() if not brazing_ht_subset.empty else 0
             
-            db_dwell_200 = calculate_exact_dwell_time(debinder_subset, col_name, 200.0)
-            d_dwell_175 = calculate_exact_dwell_time(dryer_subset, col_name, 175.0)
+            db_dwell_200 = (debinder_subset[col_name] >= 200).sum() if not debinder_subset.empty else 0
+            d_dwell_175 = (dryer_subset[col_name] >= 175).sum() if not dryer_subset.empty else 0
 
             summary_rows.append([
                 location,
